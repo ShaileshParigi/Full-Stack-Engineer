@@ -129,6 +129,68 @@ say so explicitly when a checkpoint is a deliberate side-quest instead.
   actually pages you at 3am."
 - **Every lesson ends with something he ran himself**, not just read.
 
+## Lesson format — follow this for every lesson
+
+**The problem this solves:** precise, correct material written only in
+production vocabulary reads as a wall of jargon. He has said the terminology
+goes over his head. The fix is *not* to lower the standard — he needs the real
+words for technical discussions and interviews. The fix is to always reach the
+real words **through** a plain-language pass, and to define every term the first
+time it appears.
+
+Every lesson file uses this skeleton:
+
+```
+# Day K — Title
+_Why this matters:_ 2–4 sentences. Where this bites in real work.
+
+## The one-paragraph version
+The entire day in plain English, no jargon. If he read only this, what
+should he walk away knowing?
+
+## Words you'll meet today
+| Term | In plain words | The precise version |
+Every piece of jargon the lesson uses, defined BEFORE it appears.
+
+## Before you read: N questions
+
+## Part N — Topic
+**In plain words:** 2–5 sentences, everyday language, an analogy if one
+genuinely fits. No jargon, or jargon immediately unpacked.
+
+[the precise technical material — tables, commands, edge cases, failure
+modes. This is the existing standard and it does not get watered down.]
+
+> **Say this in an interview:** one or two crisp sentences using the correct
+> terminology. This is the bridge — it shows him what the plain idea sounds
+> like when spoken properly.
+
+## Hands-on
+## Gotchas
+## Recap
+## Say it out loud
+5–6 prompts: "explain X to a colleague in 30 seconds". Where he checks he
+can produce the vocabulary, not just recognise it.
+## Q&A
+```
+
+Rules for the format:
+
+- **Plain pass first, always.** Never open a section with the precise
+  definition. Analogy or plain restatement, then the real thing.
+- **Never use a term before defining it.** If a word appears in Part 3 that
+  wasn't in "Words you'll meet today", define it inline in parentheses.
+- **The "Say this in an interview" box is not optional** on any section
+  covering something an interviewer would actually ask. It is where the
+  vocabulary gets rehearsed rather than just read.
+- **Don't dilute the technical content to make it approachable.** Add a layer,
+  don't remove one. The precise version, the edge cases and the failure modes
+  stay exactly as detailed as they were.
+- **Prefer concrete numbers and named things over abstractions.** "waits 30
+  seconds then SIGKILLs" beats "enforces a termination policy".
+- **Analogies must land back on the mechanism** in the same breath. An analogy
+  left standing alone becomes the thing he remembers instead of the truth.
+
 ## Code block conventions
 
 The lab can execute fenced blocks, so tag them accurately:

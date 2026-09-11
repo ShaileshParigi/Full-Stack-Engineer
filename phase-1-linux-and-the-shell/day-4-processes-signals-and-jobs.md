@@ -2,13 +2,59 @@
 
 _Why this matters:_ This is the most directly career-relevant day in Phase 1.
 When Kubernetes rolls out a new version of your Spring Boot app, it sends your
-process a **signal** and gives it a few seconds to finish what it's doing. If
-your app doesn't understand that signal, every deploy drops live requests. The
-mechanism behind graceful shutdown is exactly what today covers.
+running program a **signal** and gives it a few seconds to finish what it's
+doing. If your app doesn't understand that signal, every deploy drops live
+requests. The mechanism behind graceful shutdown is exactly what today covers.
 
 > Day 3 (permissions) was skipped. Nothing here depends on it, but circle back
 > before Phase 4 — "the JAR can't write its log" and "non-root user in a
 > container" are both permissions problems.
+
+---
+
+## The one-paragraph version
+
+A running program is called a **process**, and Linux gives each one a number so
+you can find it and talk to it. You talk to a process by sending it a small
+message called a **signal**. There are two that matter: one that means *"please
+stop, finish up first"* and one that means *"you're dead now, no last words."*
+The polite one can be caught by the program, so it gets a chance to close its
+database connections and finish the requests it's already handling. The brutal
+one cannot be caught by anything, ever — the program is killed mid-instruction.
+Docker, Kubernetes and systemd all use the exact same pattern: send the polite
+one, wait a few seconds, then send the brutal one. **Your job as a backend
+developer is to make sure your app finishes its cleanup inside that window.**
+Everything else today — reading process lists, understanding memory numbers,
+exit codes — is the tooling you need to check whether that's actually happening.
+
+---
+
+## Words you'll meet today
+
+Read this table once. Don't try to memorise it — it's here so no term below
+ambushes you.
+
+| Term | In plain words | The precise version |
+|------|----------------|---------------------|
+| **process** | A running program | A program in execution, with its own memory space, file descriptors and kernel bookkeeping |
+| **PID** | The process's ID number | Process ID — a unique integer the kernel assigns to each process |
+| **PPID** | The ID of whatever started it | Parent Process ID |
+| **fork** | A process making a copy of itself | The syscall that creates a child process as a duplicate of the parent |
+| **exec** | That copy becoming a different program | The syscall that replaces a process's program image with another |
+| **daemon** | A program that runs in the background forever | A long-lived background process, usually detached from any terminal |
+| **orphan** | A process whose starter died | A process whose parent exited; it gets re-parented to PID 1 |
+| **zombie** | A finished process nobody has cleaned up | A terminated process whose exit status the parent hasn't collected via `wait()` |
+| **signal** | A one-word message sent to a process | A software interrupt delivered by the kernel to a process |
+| **handler** | Code that runs when a signal arrives | A function registered to execute on signal delivery; `trap` in bash |
+| **RSS** | The RAM the process is really using | Resident Set Size — physical memory pages currently held |
+| **VSZ** | Address space it *reserved*, mostly unused | Virtual Size — total virtual address space mapped |
+| **load average** | How many things are queued up to run | Count of processes runnable or in uninterruptible sleep, averaged over 1/5/15 min |
+| **iowait** | CPU sitting idle because the disk is slow | Fraction of time CPUs are idle *while* I/O requests are outstanding |
+| **exit code** | The number a program returns when it finishes | Integer status returned to the parent; 0 = success |
+| **graceful shutdown** | Stopping without dropping work in progress | Refusing new work, completing in-flight work, releasing resources, then exiting |
+| **grace period** | How long you get before you're force-killed | Configured wait between SIGTERM and SIGKILL |
+| **job** | A command *your shell* started and tracks | A process group under the shell's job control |
+| **foreground / background** | Whether it's holding your prompt | Whether the process group owns the terminal |
 
 ---
 
@@ -22,17 +68,31 @@ mechanism behind graceful shutdown is exactly what today covers.
 
 ## Part 1 — What a process actually is
 
+**In plain words:** A program sitting on disk is just a file — inert. When you
+run it, Linux loads it into memory, gives it an ID number, and starts executing
+it. *That* running thing is a process. The same program can be running five
+times at once; that's five processes, five ID numbers, five separate piles of
+memory that can't see each other.
+
 A **process** is a running program plus everything the kernel tracks about it:
 its own memory space, a numeric **PID**, a **parent** (`PPID`), the user it runs
 as, a working directory, and a table of open file descriptors.
 
 ### Everything has a parent
 
-A process is created by an existing process, via two steps:
+**In plain words:** Nothing starts itself. Every process is started by another
+process — you type a command, your shell starts it. So the shell is its parent.
+Follow the parents upward and you always end at one process that started
+everything else.
+
+That happens in two steps:
 
 1. **`fork()`** — the parent clones itself. Two nearly identical processes now
    exist, differing only in the return value of `fork`.
 2. **`exec()`** — the child replaces its own program image with a different one.
+
+Copy yourself, then become something else. It looks wasteful and isn't — the
+copy is lazy, sharing memory until one side writes to it.
 
 That's why every process has a parent, and why the whole system is a tree with
 **PID 1 at the root**. On your machine that's `systemd` (from Day 1):
@@ -55,12 +115,28 @@ logging out.
 
 **Zombies** are the opposite case: a child has finished, but its parent hasn't
 collected the exit code yet. The process is gone; only an entry in the table
-remains, holding a PID. They show as `Z` in `ps`. You can't kill a zombie — it's
-already dead. You fix the *parent*, or the parent exits and PID 1 cleans up.
+remains, holding a PID. They show as `Z` in `ps`.
+
+> **Careful with the word "zombie."** It sounds like something still running.
+> It's the opposite — the process is already dead. What survives is a row in the
+> kernel's table holding its exit code, waiting for the parent to read it. You
+> **can't kill a zombie**; there's nothing there to kill. You fix the *parent*,
+> or let the parent exit so PID 1 cleans up.
+
+> **Say this in an interview:** "A process is created by `fork` then `exec` —
+> the parent clones itself and the child replaces its image. Every process has a
+> parent, so the system forms a tree rooted at PID 1. If a parent exits first
+> its children are re-parented to PID 1. A zombie is a terminated child whose
+> parent hasn't called `wait()` to reap its exit status — it holds a PID slot
+> but no memory, and you fix it by fixing the parent."
 
 ---
 
 ## Part 2 — Reading `ps`
+
+**In plain words:** `ps` prints the list of what's currently running. It's the
+Task Manager of the terminal. The only genuinely confusing part is the memory
+columns, because one of them lies to you.
 
 `ps` has two historical syntaxes and both survive:
 
@@ -85,16 +161,25 @@ ps -o pid,ppid,stat,rss,comm -p $$     # pick your own columns
 
 ### VSZ vs RSS — the one that matters
 
+**In plain words:** Think of renting a warehouse. **VSZ** is the floor space you
+signed for. **RSS** is the space you've actually stacked boxes in. A JVM signs
+for an enormous warehouse and then uses one corner of it — so if you look at
+VSZ you'll panic about a memory leak that isn't there.
+
 **`VSZ` is nearly meaningless on its own.** It counts address space the process
 has *reserved*, including memory it never touched and shared libraries counted
 in full. A JVM routinely shows several gigabytes of VSZ while using a few
 hundred MB of real memory.
 
-**`RSS` is the real physical footprint.** When something gets OOM-killed, RSS is
-what mattered. You'll return to this in Phase 4 Day 45, where the JVM's heap and
-the container's memory limit have to be reconciled.
+**`RSS` is the real physical footprint.** When something gets killed for using
+too much memory, RSS is what mattered. You'll return to this in Phase 4 Day 45,
+where the JVM's heap and the container's memory limit have to be reconciled.
 
 ### STAT codes
+
+**In plain words:** A one-or-two letter code for what the process is doing right
+now. Mostly it's `S` — asleep, waiting for something to happen. That's normal;
+most processes spend most of their life waiting.
 
 | Code | State |
 |------|-------|
@@ -107,14 +192,29 @@ the container's memory limit have to be reconciled.
 | `s` | Session leader |
 | `l` | Multi-threaded |
 
-**A `D`-state process cannot be killed — not even with `-9`.** It isn't ignoring
-you; it's inside a kernel operation where signals aren't delivered. If you ever
-meet an unkillable process, it's almost always `D`, and almost always a storage
-or network-filesystem problem.
+**A `D`-state process cannot be killed — not even with `-9`.**
+
+Why: "uninterruptible" means the process is *inside* a kernel operation — say,
+waiting on a network filesystem to answer — and the kernel has deliberately
+switched off signal delivery until that operation returns. It isn't ignoring
+you; the message can't reach it. If you ever meet a genuinely unkillable
+process, it's almost always `D`, and almost always a storage or network-storage
+problem, not a problem with the process.
+
+> **Say this in an interview:** "`VSZ` is reserved virtual address space and is
+> nearly useless as a memory metric — the JVM inflates it enormously. `RSS` is
+> resident physical memory and is what the OOM killer acts on. A process in `D`
+> state is in uninterruptible sleep inside a kernel call, so signals aren't
+> delivered — that's why it survives `SIGKILL`, and it almost always points at
+> blocked I/O."
 
 ---
 
 ## Part 3 — `top`, `htop`, and load average
+
+**In plain words:** `top` is a live, continuously refreshing version of `ps`.
+The number people misread constantly is **load average** — it looks like a
+percentage and isn't.
 
 ```bash
 top        # press 1 for per-core, M sort by memory, P sort by CPU, q quit
@@ -124,6 +224,13 @@ uptime     # load average, quickly
 ```
 
 ### Load average is not a percentage
+
+**In plain words:** Imagine one checkout till at a supermarket. Load average is
+*how many people are in the queue on average*, including the one being served.
+Load `1` on a one-till shop means perfectly busy, no queue. Load `4` means three
+people waiting. Now open twelve tills — load `4` is suddenly nothing at all.
+**The number is only meaningful next to how many tills you have.** Your tills
+are CPU cores.
 
 ```bash
 cat /proc/loadavg
@@ -138,8 +245,8 @@ cores: 12
 ```
 
 Those three numbers are the **1, 5 and 15-minute averages of the number of
-processes that are runnable or in uninterruptible sleep**. It's a *count*, not a
-percentage — so it only means something next to your core count.
+processes that are runnable or in uninterruptible sleep**. A *count*, not a
+percentage.
 
 With **12 cores**:
 
@@ -150,10 +257,14 @@ With **12 cores**:
 The trend across 1/5/15 matters more than the instant: `10.0 2.0 0.5` is a spike
 starting now; `0.5 2.0 10.0` is a spike that's ending.
 
-**Linux counts `D` state in load.** This is the trap: load can be high with idle
-CPUs because everything is blocked on disk. `iowait` in `top` is the giveaway —
-CPU sitting idle *because* it's waiting on I/O. High load + high iowait + low
-CPU means a storage problem, not a compute one.
+**Linux counts `D` state in load** — and that's the trap. Remember `D` means
+"stuck waiting on disk". So the queue can be enormous while every CPU sits idle,
+because nothing in the queue is waiting for a *CPU*; they're all waiting for a
+*disk*. The giveaway is **`iowait`** in `top`: CPU idle *because* it's blocked on
+I/O. High load + high iowait + low CPU = a storage problem, not a compute one.
+Buying more CPUs would fix nothing.
+
+### Memory: read the right column
 
 Your WSL memory:
 
@@ -162,21 +273,34 @@ Your WSL memory:
 Mem:           3.6Gi       429Mi       2.8Gi       2.0Mi       340Mi       3.0Gi
 ```
 
-**Read the `available` column, not `free`.** Linux deliberately uses spare RAM
-for disk cache (`buff/cache`) and hands it back instantly when a program needs
-it. "Free memory is wasted memory." Only `available` tells you what you can
-actually allocate.
+**In plain words:** Linux borrows spare RAM to cache files from disk, because
+unused RAM is doing nothing useful. That borrowed RAM shows up as "not free"
+even though you can have it back instantly the moment a program asks. So `free`
+under-reports what you can actually use, and `available` is the honest number.
+
+**Read the `available` column, not `free`.** "Free memory is wasted memory" —
+`buff/cache` is returned to programs on demand.
 
 Note WSL got **3.6 GiB**, not your whole machine — it's a VM with its own budget,
 configurable in `.wslconfig`. Worth remembering before you run Kafka, Keycloak
 and Postgres in it simultaneously.
 
+> **Say this in an interview:** "Load average is a count of runnable plus
+> uninterruptible-sleep processes, not a percentage, so it only means anything
+> relative to core count. And because Linux includes `D` state, load can be high
+> with idle CPUs — that's an I/O bottleneck, and `iowait` confirms it. For
+> memory, `available` is the number that matters; `free` excludes reclaimable
+> page cache."
+
 ---
 
 ## Part 4 — Signals
 
-**A signal is a small message the kernel delivers to a process.** Some can be
-caught and handled; two cannot.
+**In plain words:** A signal is a one-word message you send to a running
+process. There's no room for detail — just the word. The program can register a
+piece of code to run when a particular word arrives (that's a **handler**), and
+do whatever cleanup it wants. Two words are special: for those two, the program
+gets no handler and no say at all.
 
 ```bash
 kill -l      # list them all
@@ -195,12 +319,14 @@ The ones that matter:
 | `SIGCONT` | 18 | resume | yes | Continue |
 
 **`SIGKILL` and `SIGSTOP` cannot be caught, blocked, or ignored.** That's
-deliberate — the OS must always retain the ability to stop a process. Every
-other signal is a request the program may handle.
+deliberate: if a program could catch every signal, a buggy or malicious one
+could make itself immortal. The OS keeps two it can always use. Every other
+signal is a *request* the program may choose to handle.
 
 ### The difference, demonstrated
 
-Here's a script that cleans up when asked politely:
+Here's a script that cleans up when asked politely. `trap` is bash's way of
+registering a handler — "when signal TERM arrives, run this function":
 
 ```bash
 mkdir -p /tmp/day4 && cd /tmp/day4
@@ -218,6 +344,9 @@ while true; do sleep 0.2; done
 EOF
 chmod +x graceful.sh
 ```
+
+The lock file stands in for anything a real app must release on the way out: a
+database transaction, a connection pool, a registration in a load balancer.
 
 **Polite:**
 
@@ -258,15 +387,17 @@ Same program. With `SIGTERM` the handler ran and the lock was released. With
 closing connections. The lock file is now stale forever.
 
 That is the answer to question 1: `kill -9` always works precisely *because* the
-process gets no say — which also means no chance to finish writing a file, commit
-a transaction, or deregister from a load balancer.
+process gets no say — which also means no chance to finish writing a file,
+commit a transaction, or deregister from a load balancer.
 
 > **Never reach for `-9` first.** Send `SIGTERM`, give it a few seconds, and only
 > escalate if it's genuinely stuck.
 
 ### Why this decides whether your deploys lose requests
 
-This is the part that connects to everything later:
+**In plain words:** When a deploy replaces your app, something has to stop the
+old copy. Every system does it the same way: ask politely, wait, then force.
+Your app has to finish its goodbyes inside the wait.
 
 | System | What it does |
 |--------|--------------|
@@ -274,15 +405,15 @@ This is the part that connects to everything later:
 | Kubernetes pod deletion | `SIGTERM` → wait `terminationGracePeriodSeconds` (**default 30s**) → `SIGKILL` |
 | `systemctl stop` | `SIGTERM` → wait `TimeoutStopSec` → `SIGKILL` |
 
-**Spring Boot graceful shutdown** (`server.shutdown=graceful`) is a `SIGTERM`
-handler: stop accepting new connections, let in-flight requests finish, close
-the connection pool, then exit.
+**Spring Boot graceful shutdown** (`server.shutdown=graceful`) is nothing more
+than a `SIGTERM` handler: stop accepting new connections, let in-flight requests
+finish, close the connection pool, then exit.
 
 Two failure modes you'll meet for real:
 
 - **App ignores `SIGTERM`** → every rolling deploy kills live requests mid-flight.
 - **App takes longer than the grace period** → `SIGKILL` at 30s, connections cut
-  anyway. So the shutdown timeout must be *shorter* than the grace period.
+  anyway. So your app's shutdown timeout must be *shorter* than the grace period.
 
 ### The JVM trick worth remembering
 
@@ -291,9 +422,11 @@ kill -3 <java-pid>      # SIGQUIT
 ```
 
 The JVM catches `SIGQUIT` and dumps **every thread's stack trace** to stdout
-without stopping the process. That's how you diagnose a hung Java app in
-production — and it's exactly the tool for Phase 5 Day 69 (deadlocks and pool
-exhaustion).
+**without stopping the process** — so it's safe to run against production. A
+*thread dump* is a snapshot of what every thread is doing at that instant; if
+forty threads are all parked waiting for a database connection, the dump says so
+in black and white. That's how you diagnose a hung Java app, and it's exactly
+the tool for Phase 5 Day 69 (deadlocks and pool exhaustion).
 
 ### Sending signals
 
@@ -309,16 +442,29 @@ killall firefox             # by exact process name
 ```
 
 `pkill -f` matches against the **full command line**, which is what you need for
-`java -jar app.jar` — the process name is just `java`.
+`java -jar app.jar` — the process *name* is just `java`, so matching on the name
+would hit every JVM on the box.
 
 > Be careful with `pkill -f`: a too-broad pattern will match more than you meant.
 > Run `pgrep -f` first to see what you're about to hit.
+
+> **Say this in an interview:** "`SIGTERM` is a catchable request — the process
+> can install a handler and clean up. `SIGKILL` and `SIGSTOP` can't be caught,
+> blocked or ignored, so `kill -9` gives the process no chance to release
+> resources. Docker waits 10 seconds after SIGTERM, Kubernetes 30 by default,
+> then SIGKILLs. Spring Boot's graceful shutdown is a SIGTERM handler, and its
+> timeout has to be shorter than the grace period or you get killed mid-drain."
 
 ---
 
 ## Part 5 — Exit codes
 
-Every process returns a number when it ends. `$?` holds the last one.
+**In plain words:** When a program finishes it hands back a single number. Zero
+means it worked. Anything else means it didn't, and the number hints at why.
+Backwards from booleans, where 0 is false — here 0 is the good case, because
+there's exactly one way to succeed and many ways to fail.
+
+`$?` holds the last one:
 
 ```bash
 true;  echo $?     # 0
@@ -328,27 +474,37 @@ ls /nonexistent 2>/dev/null; echo $?    # 2
 
 | Code | Means |
 |------|-------|
-| `0` | Success. **Zero is success** — the opposite of a boolean |
+| `0` | Success |
 | `1`–`125` | Application-defined failure |
 | `126` | Found, but not executable (a permissions problem) |
 | `127` | Command not found |
 | **`128+N`** | **Killed by signal N** |
 
-That last row answers question 2:
+That last row is a convention, and it's the useful one. If a process was killed
+by a signal rather than exiting on its own, the shell reports `128 + the signal
+number`. So:
 
 - **`143`** = 128 + 15 = killed by **SIGTERM**
 - **`137`** = 128 + 9 = killed by **SIGKILL**
 
-**When a Kubernetes pod shows exit code 137, something sent it SIGKILL** — most
-often the kernel's OOM killer because the container exceeded its memory limit,
-or the grace period expiring during shutdown. You now know that from the number
-alone.
+That's question 2. **When a Kubernetes pod shows exit code 137, something sent
+it SIGKILL** — most often the kernel's OOM killer because the container exceeded
+its memory limit, or the grace period expiring during shutdown. You know that
+from the number alone, before opening a single log.
+
+> **Say this in an interview:** "Exit code 0 is success; 128+N means the process
+> was killed by signal N. So 137 is 128+9, SIGKILL — in Kubernetes that's
+> usually the OOM killer hitting the container memory limit, or the termination
+> grace period expiring. 143 is 128+15, a normal SIGTERM shutdown."
 
 ---
 
 ## Part 6 — Job control
 
-Your shell manages *jobs* — commands it started.
+**In plain words:** A **job** is just "a command your shell is keeping track
+of". Normally a command holds your prompt until it finishes — that's the
+*foreground*. Add `&` and it runs while you keep typing — the *background*.
+`Ctrl+Z` freezes the foreground one so you can get your prompt back.
 
 ```bash
 sleep 300 &        # start in the background
@@ -358,29 +514,39 @@ bg %1              # resume a stopped job in the background
 kill %1            # signal by job number
 ```
 
+The `%1` is a *job* number, not a PID — it only means something to your shell.
+
 | Keystroke | Sends | Effect |
 |-----------|-------|--------|
 | `Ctrl+C` | `SIGINT` | Interrupt the foreground job |
 | `Ctrl+Z` | `SIGTSTP` | Suspend it (resume with `fg`/`bg`) |
 | `Ctrl+\` | `SIGQUIT` | Quit, with a core dump |
 
+Notice those keystrokes are just signals with a keyboard shortcut. `Ctrl+C`
+isn't special magic — it's `SIGINT`, which is catchable, which is why some
+programs ask "are you sure?" instead of dying.
+
 **`Ctrl+Z` leaves the process stopped, not finished.** Suspending a job and
 closing the terminal is a classic way to lose work.
 
 ### Surviving logout
+
+**In plain words:** When you close a terminal, everything it started normally
+dies with it — the kernel sends `SIGHUP` ("your terminal is gone") to the whole
+group. `nohup` means "no hangup": ignore that signal and keep going.
 
 ```bash
 nohup ./long-job.sh > job.log 2>&1 &
 disown
 ```
 
-`nohup` makes the process ignore `SIGHUP` (the "terminal closed" signal) and
-redirects output, since there's no terminal to write to. `disown` removes it from
-the shell's job table entirely.
+`nohup` also redirects output, since there's no terminal left to print to.
+`disown` removes the job from the shell's table entirely, so the shell won't
+even try to notify it.
 
 **In practice, prefer `tmux` for interactive work and a `systemd` unit for
 anything that should genuinely keep running.** `nohup` is the emergency option,
-not the design.
+not the design — you'll see the proper version tomorrow.
 
 ---
 
@@ -451,7 +617,7 @@ rm -f work.lock
 ```
 
 Confirm you get exit `0` then exit `137`, and that the lock leaks only the
-second time.
+second time. **This is the single most important thing you'll run in Phase 1.**
 
 ### 5. Ignore SIGTERM, then escalate
 
@@ -474,8 +640,9 @@ kill -KILL $P; wait $P 2>/dev/null
 echo "exit=$?  (137 = SIGKILL)"
 ```
 
-`kill -0` sends no signal — it only tests whether you *could* signal the
-process. It's the standard "is this PID alive?" check.
+`kill -0` sends no signal at all — it only tests whether you *could* signal the
+process. It's the standard "is this PID still alive?" check, and you'll see it
+in shell scripts everywhere.
 
 ### 6. Exit codes
 
@@ -518,7 +685,8 @@ Always run `pgrep -f` before `pkill -f`.
 
 ## Gotchas
 
-- **`kill` sends SIGTERM by default**, not SIGKILL. The name is misleading.
+- **`kill` sends SIGTERM by default**, not SIGKILL. The name is misleading —
+  `kill` really means "send a signal".
 - **`kill -9` skips all cleanup.** Stale locks, half-written files, unclosed
   connections. Escalate to it, don't start there.
 - **`SIGKILL` and `SIGSTOP` can't be caught.** Nothing you write handles them.
@@ -530,6 +698,7 @@ Always run `pgrep -f` before `pkill -f`.
 - **Load average is a count, not a percentage.** Compare it to `nproc`.
 - **`pkill -f` with a loose pattern kills more than you meant.** `pgrep` first.
 - **`Ctrl+Z` suspends, it doesn't stop.** The job is still there, frozen.
+- **You can't kill a zombie.** It's already dead — fix the parent.
 
 ---
 
@@ -547,7 +716,26 @@ Always run `pgrep -f` before `pkill -f`.
   shutdown must finish inside that window.
 - **`128+N` encodes the signal in the exit code** — `137` is SIGKILL, `143` is
   SIGTERM.
-- `kill -3` on a JVM prints a full thread dump. Remember this one.
+- `kill -3` on a JVM prints a full thread dump without stopping it. Remember
+  this one.
+
+---
+
+## Say it out loud
+
+Answer each in about 30 seconds, using the real terms. If you can only *point*
+at the answer, re-read that part — recognising a word isn't the same as owning
+it.
+
+1. What actually happens, step by step, when you type `ls` and press Enter?
+2. Why does `kill -9` "always work", and what does that cost you?
+3. A colleague says "the server load is 8, we're at 80% capacity." What's wrong
+   with that sentence?
+4. Your pod restarted with exit code 137. Walk through what you'd check and why.
+5. Explain to a junior why `VSZ` on a Java process looks alarming and isn't.
+6. What's a zombie process, and why can't you kill it?
+
+---
 
 **Next (Day 5):** packages, `systemd` services and `cron` — turning the
 `systemd` you already have running into something you can actually operate,

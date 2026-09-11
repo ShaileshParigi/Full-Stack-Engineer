@@ -7,6 +7,50 @@ machine stop being a black box.
 
 ---
 
+## The one-paragraph version
+
+Linux puts everything in **one tree starting at `/`** — no `C:` drive, no `D:`
+drive. And unlike Windows, it does **not** keep each program's files together in
+one folder. Instead it sorts files by *what kind of thing they are*: all
+configuration goes in one place, all logs in another, all programs in a third.
+That looks arbitrary until you realise it's what lets an administrator back up
+just the configuration, or give the logs their own disk so a runaway log file
+can't take the machine down. On top of that, there's one directory — `/proc` —
+that isn't really files at all: it's the kernel's live internal state made to
+*look* like files, so ordinary tools like `cat` can read it. Every tool that
+tells you what's running (`ps`, `top`, `free`) is just reading `/proc`. Finally,
+because you're on WSL, you have **two** filesystems bolted together: a fast
+Linux one, and your Windows drives mounted at `/mnt/`, which are much slower
+because every file operation has to cross between two operating systems.
+
+---
+
+## Words you'll meet today
+
+| Term | In plain words | The precise version |
+|------|----------------|---------------------|
+| **kernel** | The core of the OS that talks to hardware | The privileged program managing memory, processes, devices and syscalls |
+| **syscall** | How a program asks the kernel to do something | System call — the controlled entry point from user space into the kernel |
+| **VM (virtual machine)** | A whole simulated computer running inside your real one | Virtualised hardware running its own kernel and OS |
+| **WSL2** | Ubuntu running in a tiny VM on Windows | A real Linux kernel in a lightweight Hyper-V VM, integrated with Windows |
+| **init system** | The first program to start, which starts everything else | The process launched by the kernel as PID 1 |
+| **systemd** | Ubuntu's init system | PID 1; manages services, dependencies, logging and boot ordering |
+| **PID** | A running program's ID number | Process ID |
+| **filesystem** | How files are organised on a storage device | The on-disk structure mapping names to data and metadata |
+| **ext4** | The normal Linux filesystem format | Fourth extended filesystem — the Linux default |
+| **mount** | Attaching a storage device into the tree at some folder | Making a filesystem accessible at a directory (the mount point) |
+| **FHS** | The agreed rules for what goes in which top-level folder | Filesystem Hierarchy Standard |
+| **virtual filesystem** | Files that aren't on any disk, generated on demand | A filesystem whose contents are produced by the kernel at read time |
+| **`/proc` (procfs)** | A live window into the kernel, disguised as files | Virtual filesystem exposing process and kernel state |
+| **symlink** | A shortcut — a file that points at another path | Symbolic link; a file whose content is a path the kernel follows |
+| **page cache** | The kernel's in-RAM copy of recently used file data | Kernel cache of file pages, avoiding repeat disk access |
+| **dotfile** | A hidden file, named starting with `.` | An `ls` display convention, not a permission |
+| **shell** | The program that reads your commands and runs them | A command interpreter — bash, in your case |
+| **latency** | How long one request takes, no matter how small | Fixed per-operation delay, independent of payload size |
+| **throughput** | How much data you can move per second once flowing | Bandwidth — bytes transferred per unit time |
+
+---
+
 ## Before you read: two questions
 
 Answer these in your head first. They tell you where your gaps actually are.
@@ -23,11 +67,18 @@ covers.
 
 ## Part 1 — What WSL2 actually is
 
+**In plain words:** You're not running "Linux commands on Windows." You're
+running an actual, complete Ubuntu system inside a very small, very fast virtual
+machine that Windows starts for you. It has its own real Linux kernel. That's
+why things behave exactly as they would on a server — and it wasn't always this
+way.
+
 There were two generations of WSL, and the difference matters.
 
 - **WSL1** was a *translation layer*. Linux programs made Linux system calls,
-  and Windows translated each one into a Windows call. No Linux kernel existed.
-  Anything that needed real kernel behaviour broke.
+  and Windows tried to translate each one into an equivalent Windows call. There
+  was no Linux kernel anywhere. Anything needing real kernel behaviour — Docker,
+  `/proc`, some filesystem operations — broke.
 - **WSL2** runs a **real Linux kernel** in a lightweight virtual machine. Full
   system-call compatibility. Real `/proc`, real containers, real `systemd`.
 
@@ -68,21 +119,36 @@ systemd
 running
 ```
 
-**`systemd` is the init system** — process ID 1, the first process the kernel
-starts, and the ancestor of everything else. It starts services at boot, restarts
-them when they crash, and manages their logs. `systemctl` is how you talk to it.
-Without it, PID 1 would just be your shell and `systemctl` would fail — which is
-what most WSL setups look like, and why so many tutorials don't work there.
+**What `systemd` is:** when a computer boots, the kernel starts exactly one
+program, and that program starts everything else. That first program is the
+**init system**, and it always gets process ID **1**. On Ubuntu it's `systemd`.
+It starts services at boot, restarts them when they crash, and captures their
+logs. `systemctl` is the command you use to talk to it.
 
-You'll use this properly on Day 4.
+Without it, PID 1 in WSL would just be your shell, and every `systemctl` command
+would fail — which is what most WSL setups look like, and why so many tutorials
+mysteriously don't work there.
+
+You'll use this properly on Day 5.
+
+> **Say this in an interview:** "WSL1 was a syscall translation layer with no
+> Linux kernel, so anything depending on real kernel behaviour broke. WSL2 runs
+> an actual Linux kernel in a lightweight VM, which is why Docker, `/proc` and
+> systemd work. `systemd` is the init system — PID 1 — and it's what manages
+> service lifecycle and logging."
 
 ---
 
 ## Part 2 — The two filesystems, and why one is slow
 
-This is the single most practical WSL fact.
+**In plain words:** Your Ubuntu can see two completely different kinds of
+storage. One is its own private Linux disk — fast. The other is your actual
+Windows `C:` and `D:` drives, made visible under `/mnt/`. Reading those means
+Linux has to ask Windows for every single thing, and that request-and-answer
+round trip has a cost you pay *per file*. One big file: fine. Ten thousand small
+files: painful.
 
-Your Ubuntu has **two very different kinds of storage**:
+This is the single most practical WSL fact.
 
 | Path | What it is | Speed |
 |------|-----------|-------|
@@ -131,14 +197,27 @@ edit it with Windows VS Code and run Windows Node and Java against it. But when
 a Linux exercise says "make some files and experiment," do it in `~`, not
 `/mnt/d`. Crossing the boundary repeatedly is the mistake.
 
+> **Say this in an interview:** "In WSL2, `~` is ext4 inside a virtual disk and
+> runs at native speed, while `/mnt/*` is a 9p mount of the Windows drives —
+> every operation crosses the VM boundary. It's latency-bound, so bulk transfer
+> is fine but metadata-heavy work like builds, `node_modules` or `git status` is
+> an order of magnitude slower. You keep each project's build on the side that
+> owns it." *(The full derivation of why is in this file's Q&A — it's worth
+> reading, because the same shape reappears as N+1 queries and chatty
+> microservice calls.)*
+
 ---
 
 ## Part 3 — The filesystem hierarchy
 
 ### The organizing principle
 
-Here's the idea that makes the whole layout click, and it is genuinely
-different from Windows.
+**In plain words:** On Windows, one program's stuff lives in one folder. On
+Linux, one program's stuff is *deliberately spread out* — because the files are
+grouped by how they behave, not by who owns them. All the configuration in the
+system sits together. All the logs sit together. All the programs sit together.
+Once you know the categories, you can find any file on any Linux machine
+without being told where it is.
 
 **Windows organizes by application.** Everything for one program lives under
 `C:\Program Files\ThatProgram\`.
@@ -153,8 +232,8 @@ deliberately scattered:
 | logs and changing data | `/var/log/nginx/` |
 | documentation, static assets | `/usr/share/nginx/` |
 
-That looks like chaos until you ask *why*: it groups files by **how they behave**,
-so each group can be treated differently.
+That looks like chaos until you ask *why*: grouping by behaviour means each
+group can be **treated differently**.
 
 - `/usr` is program code that only changes when you install or upgrade — it can
   be mounted **read-only**, or shared between machines.
@@ -163,9 +242,11 @@ so each group can be treated differently.
   fills that partition instead of taking down the whole system.
 - `/tmp` is disposable — wipe it on boot.
 
-"A log file filled the disk and took down the server" is a real, common outage.
-This layout is the defence against it. You'll meet the same reasoning again when
-you write Dockerfiles (Phase 4) and mount volumes in Kubernetes (Phase 17).
+"A log file filled the disk and took down the server" is a real, common outage,
+and this layout is the defence against it. You'll meet exactly this reasoning
+again when you write Dockerfiles (Phase 4) and mount volumes in Kubernetes
+(Phase 17) — a container image is this same hierarchy, and a volume is you
+choosing which part of it survives.
 
 ### The directories worth knowing
 
@@ -189,19 +270,30 @@ ls -1 /
 | `/mnt` | Mount points — where your Windows drives appear |
 | `/bin`, `/sbin`, `/lib` | Symlinks into `/usr` on modern Ubuntu (the "usr merge") |
 
-Prove that last one rather than taking it on faith:
+A quick memory hook for the three you'll use most: **`/etc` you edit, `/var`
+grows, `/usr` you install.**
+
+Prove the symlink claim rather than taking it on faith:
 
 ```bash
 ls -ld /bin /sbin /lib
 ```
 
 They're symlinks to `/usr/bin`, `/usr/sbin`, `/usr/lib`. Historically `/bin` held
-the essentials needed before `/usr` was mounted; that distinction stopped being
-useful, so Ubuntu merged them and left symlinks for compatibility.
+the handful of essential programs needed *before* `/usr` was mounted (back when
+`/usr` might live on a separate or network disk). That distinction stopped being
+useful, so Ubuntu merged them and left symlinks so old scripts still work.
 
 **WSL oddities you'll see in `/`:** a `Docker` directory (Docker Desktop's
 integration) and several `wslXXXXXX` directories (temporary mount points WSL
-manages). Neither exists on a normal Ubuntu server.
+manages). Neither exists on a normal Ubuntu server — don't learn them as part of
+the standard layout.
+
+> **Say this in an interview:** "The FHS groups files by type rather than by
+> application — `/etc` for configuration, `/var` for variable data like logs,
+> `/usr` for installed programs. That's what lets you mount `/usr` read-only,
+> back up just `/etc`, and give `/var` its own partition so a runaway log fills
+> that instead of the root filesystem."
 
 ---
 
@@ -211,12 +303,13 @@ This answers diagnostic question 2, and it's the most important idea today.
 
 ### First pass: the simple version
 
-`/proc` looks like a directory full of files. **None of those files exist on
-disk.** When you read one, the kernel generates the answer *at that instant* out
-of its own memory.
+**In plain words:** `/proc` looks like a directory full of files. **None of
+those files exist on any disk.** When you read one, the kernel invents the
+answer at that exact instant out of its own memory and hands it to you.
 
-It's a live window into the kernel, disguised as files — so that ordinary tools
-like `cat`, `grep` and `less` can inspect a running system with no special API.
+Why bother with the disguise? Because it means you need no special API, no
+library, no tool — `cat`, `grep` and `less` can inspect a live running system,
+because to them it's just files.
 
 ### Second pass: what's actually there
 
@@ -239,7 +332,9 @@ Inside a process's directory:
 | `fd/` | One entry per open file descriptor |
 
 **So: `ps`, `top`, `free` and `htop` are all just readers of `/proc`.** There is
-no secret API. That's the answer to question 2.
+no secret kernel API they use. `ps` opens `/proc`, lists the numbered
+directories, and reads `status` in each one. That's the answer to question 2 —
+and it means anything `ps` can tell you, you can get yourself with `cat`.
 
 ### Proving it's generated, not stored
 
@@ -258,9 +353,10 @@ Output:
 9677.53 115234.71
 ```
 
-**The file reports size 0**, because the kernel has no idea how long the answer
-will be until you ask. Yet reading it twice gives different values. No file on
-disk behaves like that.
+**The file reports size 0**, because the kernel genuinely doesn't know how long
+the answer will be until you ask for it — there's nothing to measure. Yet
+reading it twice a second apart gives different values. No file on disk behaves
+like that.
 
 ### Why you will care later
 
@@ -268,16 +364,26 @@ disk behaves like that.
   of `/proc`*. Isolation is implemented right here.
 - **Phase 4, Day 45:** the classic JVM-in-a-container bug is the JVM reading
   the host's memory from `/proc/meminfo` instead of its container limit, sizing
-  its heap for a machine it isn't on, and getting killed.
+  its heap for a machine it isn't running on, and getting killed for it.
 - **Phase 5, Day 69:** diagnosing a stuck production process means reading its
   `/proc` entry — what it's blocked on, what files it has open.
+
+> **Say this in an interview:** "`/proc` is a virtual filesystem — procfs. The
+> files don't exist on disk; the kernel generates their contents at read time,
+> which is why they report size zero but return different data each read.
+> There's one directory per PID, so `ps`, `top` and `free` are just readers of
+> `/proc`. It's also where container isolation shows up — a container sees a
+> different `/proc`, and that's the root of the JVM-heap-versus-container-limit
+> problem."
 
 ---
 
 ## Part 5 — Home, `~`, and dotfiles
 
-Your home directory is `/home/shailesh_parigi`. The shell expands `~` to it, and
-`$HOME` holds it.
+**In plain words:** Your home directory is your own space — the one place you
+can always write. The shell lets you type `~` instead of the full path. And any
+file whose name starts with a dot is hidden from `ls` by default, which is why
+your home looks tidy despite holding dozens of config files.
 
 ```bash
 echo "$HOME"
@@ -285,9 +391,10 @@ cd ~
 pwd
 ```
 
-**A file whose name starts with `.` is hidden** — that's a pure `ls` convention,
-not a permission. `ls -a` shows them. Configuration in your home directory uses
-this so your home isn't cluttered.
+**A file whose name starts with `.` is hidden** — that's purely an `ls`
+convention, not a permission or a special file attribute. `ls -a` shows them.
+Configuration in your home directory uses this so your home isn't cluttered by
+things you never open.
 
 ```bash
 ls -a ~ | head -20
@@ -300,9 +407,10 @@ The two that matter now:
 - **`~/.profile`** — runs for *login* shells. Environment variables like `PATH`
   belong here.
 
-The login/non-login distinction confuses everyone; you'll pin it down on Day 5.
-For now: if you add something to `.bashrc` and a new shell doesn't see it, you
-either need a new shell or `source ~/.bashrc`.
+The login/non-login distinction confuses everyone; you'll pin it down properly
+later. For now the practical version: if you add something to `.bashrc` and a
+new shell doesn't see it, you either need a fresh shell or `source ~/.bashrc`
+(which re-runs the file in your current shell rather than starting a new one).
 
 ---
 
@@ -345,7 +453,9 @@ echo "cwd -> $(readlink /proc/$$/cwd)"
 ```
 
 `cmdline` and `environ` use **NUL bytes** as separators, which terminals don't
-display — that's why `tr '\0' ' '` is needed to make it readable.
+display — that's why `tr '\0' ' '` is needed to make it readable. (NUL is
+byte value zero; it's used because it's the one character that can never appear
+inside a filename or argument.)
 
 ### 4. Prove `/proc` is live
 
@@ -397,7 +507,8 @@ echo "created ~/notes/fs-hierarchy.md"
 ```
 
 Then fill in one line each **from memory**, and only check afterwards. The
-`<<'EOF'` bit is a heredoc — you'll cover it properly on Day 5.
+`<<'EOF'` bit is a *heredoc* — a way to feed a block of literal text into a
+command instead of typing it on one line. You'll use it constantly.
 
 ---
 
@@ -422,12 +533,30 @@ Then fill in one line each **from memory**, and only check afterwards. The
 - WSL2 is a **real Linux kernel in a VM** — not a translation layer. Your setup
   already has `systemd` enabled, which most don't.
 - Two filesystems: **ext4 (`~`) is fast, `/mnt/*` is ~6× slower** because every
-  operation crosses into Windows.
+  operation crosses into Windows. It's a *latency* problem, not a bandwidth one.
 - Linux organizes files **by kind of data, not by application** — so `/usr` can
   be read-only, `/etc` backed up, `/var` given its own disk, `/tmp` wiped.
 - **`/proc` is not on disk.** It's kernel state rendered as files, generated on
   read. `ps`, `top` and `free` are just readers of it.
 - Dotfiles configure your shell; `~/.bashrc` for interactive shells.
+
+---
+
+## Say it out loud
+
+Answer each in about 30 seconds, using the real terms.
+
+1. What's the actual difference between WSL1 and WSL2, and why does it matter
+   for Docker?
+2. Someone new asks why nginx's files are scattered across three directories
+   instead of one. Give them the reason, not just the list.
+3. Explain `/proc` to someone who thinks it's a folder of files.
+4. Where does `ps` get its data? Prove it in one command.
+5. A colleague's Maven build takes 4 minutes in WSL and 40 seconds on Windows,
+   same project. What do you ask them first?
+6. What is PID 1 on this machine, and what does it do?
+
+---
 
 **Tomorrow (Day 2):** navigating and finding things — `find`, globbing, and the
 crucial detail that the *shell* expands `*` before your command ever sees it.

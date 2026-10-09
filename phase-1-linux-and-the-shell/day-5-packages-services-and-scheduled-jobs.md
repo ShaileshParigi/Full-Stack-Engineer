@@ -891,7 +891,7 @@ echo '{"name":"orders","replicas":3,"ports":[8080,9090]}' | jq '.'
 echo '{"name":"orders","replicas":3,"ports":[8080,9090]}' | jq -r '.ports[0]'
 ```
 
-`jq` is the tool you'll live in from Phase 15 onward — every AWS CLI and
+`jq` is the tool you'll live in from Phase 13 onward — every AWS CLI and
 Kubernetes command returns JSON.
 
 ### 4. Reverse lookup on a mystery file
@@ -1108,7 +1108,7 @@ how it got there and how it stays there.**
 
 **The through-line:** Day 4 gave you the *mechanism* — signals and exit codes.
 Day 5 gave you the *policy layer* that drives it — `TimeoutStopSec`, `Restart=`.
-Docker in Phase 4 and Kubernetes in Phase 17 are those same two ideas a third
+Docker in Phase 4 and Kubernetes in Phase 15 are those same two ideas a third
 and fourth time, with different config key names. **You are not going to learn
 graceful shutdown four times.** You learned it on Day 4; today you saw the
 second dialect.

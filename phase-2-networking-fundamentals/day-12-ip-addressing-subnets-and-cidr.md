@@ -2,8 +2,8 @@
 
 _Why this matters:_ Yesterday your kernel asked "is this destination on my
 subnet?" for every packet. Today you learn to answer that question yourself, in
-your head. It isn't trivia. In Phase 15 you'll carve an AWS VPC into subnets, and
-a bad choice there can't be undone without rebuilding. In Phase 17 every
+your head. It isn't trivia. In Phase 13 you'll carve an AWS VPC into subnets, and
+a bad choice there can't be undone without rebuilding. In Phase 15 every
 Kubernetes pod needs its own IP, and "pods stuck in `ContainerCreating`: failed
 to assign an IP address" is a real 3am page caused by a subnet sized too small
 months earlier. VPNs, VPC peering and Docker all break in confusing ways when
@@ -308,7 +308,7 @@ which a growing cluster eats in weeks. EKS subnets are usually `/19` or `/18`.
 
 Kubernetes clusters that *don't* give pods VPC IPs use a separate **pod CIDR**
 (e.g. `10.244.0.0/16`), which is cut into one `/24` per node — so that cluster
-tops out at 256 nodes. Same arithmetic, different consequence. Phase 17.
+tops out at 256 nodes. Same arithmetic, different consequence. Phase 15.
 
 > **Say this in an interview:** "Subnetting extends the prefix: n extra bits
 > gives 2^n subnets, each half the size per bit. Subnets must be aligned to their
@@ -452,7 +452,7 @@ morning. Hands-on 6 re-checks it.
 
 ### The AWS version — this is the public/private subnet definition
 
-In Phase 15 you'll build exactly this, and interviewers ask it directly:
+In Phase 13 you'll build exactly this, and interviewers ask it directly:
 
 - A **public subnet** is one whose route table sends `0.0.0.0/0` to an
   **Internet Gateway**. Instances there with a public IP are reachable from the

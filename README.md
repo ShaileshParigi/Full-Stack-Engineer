@@ -44,9 +44,9 @@ it starts at the beginning of that topic, not the middle.
 |-------|---------------|
 | **Core** | Linux, networking, the Java language, containers — the ground everything stands on |
 | **Java workload** | The services you actually write: concurrency, Spring Boot, PostgreSQL, security |
-| **AI** | LLMs as a component you build with, in Java |
 | **Scale** | Making it survive load: system design, gateways, messaging, caching, multi-tenancy |
 | **Operate** | Running it for real: AWS, Terraform, Kubernetes, Istio, observability, GitOps |
+| **AI** | LLMs as a component you build with, in Java |
 | **AI systems** | The specialism: agents, tool calling, MCP, and self-hosted inference |
 
 ## Phases
@@ -61,17 +61,17 @@ it starts at the beginning of that topic, not the middle.
 | 6 | Java | Spring Boot Core, REST & Async | 4 | 71–90 |
 | 7 | Java | PostgreSQL & Spring Data JPA | 3 | 91–105 |
 | 8 | Java | Spring Security Deep Dive | 4 | 106–125 |
-| 9 | AI | AI Foundations for Java Engineers | 2 | 126–135 |
-| 10 | AI | RAG & Vector Search with pgvector | 2 | 136–145 |
-| 11 | Scale | System Design Fundamentals | 3 | 146–160 |
-| 12 | Scale | Proxies, Load Balancers & API Gateways | 2 | 161–170 |
-| 13 | Scale | Async Messaging with Kafka | 2 | 171–180 |
-| 14 | Scale | Caching, Rate Limiting & Multi-Tenancy | 2 | 181–190 |
-| 15 | Operate | AWS Core Services | 3 | 191–205 |
-| 16 | Operate | Terraform & Infrastructure as Code | 2 | 206–215 |
-| 17 | Operate | Kubernetes & Orchestration | 4 | 216–235 |
-| 18 | Operate | Istio Service Mesh & mTLS | 2 | 236–245 |
-| 19 | Operate | Observability, CI/CD & GitOps | 3 | 246–260 |
+| 9 | Scale | System Design Fundamentals | 3 | 126–140 |
+| 10 | Scale | Proxies, Load Balancers & API Gateways | 2 | 141–150 |
+| 11 | Scale | Async Messaging with Kafka | 2 | 151–160 |
+| 12 | Scale | Caching, Rate Limiting & Multi-Tenancy | 2 | 161–170 |
+| 13 | Operate | AWS Core Services | 3 | 171–185 |
+| 14 | Operate | Terraform & Infrastructure as Code | 2 | 186–195 |
+| 15 | Operate | Kubernetes & Orchestration | 4 | 196–215 |
+| 16 | Operate | Istio Service Mesh & mTLS | 2 | 216–225 |
+| 17 | Operate | Observability, CI/CD & GitOps | 3 | 226–240 |
+| 18 | AI | AI Foundations for Java Engineers | 2 | 241–250 |
+| 19 | AI | RAG & Vector Search with pgvector | 2 | 251–260 |
 | 20 | AI systems | Agents, Tool Calling & MCP in Java | 2 | 261–270 |
 | 21 | AI systems | Self-Hosted Inference & GPU Serving | 2 | 271–280 |
 | — | — | **Capstone** | 3 | 281–295 |
@@ -93,15 +93,16 @@ who can get Java to compile:
 
 ### Milestones along the way
 
-You don't have to reach Phase 21 to have gained something hireable:
+You don't have to reach Phase 21 to have gained something hireable (note the order: the
+platform and operations phases come before AI):
 
 | After | You are |
 |-------|---------|
 | **Phase 5** (~Day 70, month 3.5) | Genuinely solid on core Java and concurrency — past the level most 2-year devs reach |
 | **Phase 8** (~Day 125, month 6) | A real Java backend engineer — Spring Boot, PostgreSQL, Spring Security, async |
-| **Phase 10** (~Day 145, month 7) | The above, plus able to ship RAG features in Java — a genuinely scarce combination |
-| **Phase 14** (~Day 190, month 9) | Able to design and defend a scalable multi-tenant system |
-| **Phase 19** (~Day 260, month 12) | Able to run it in production yourself |
+| **Phase 12** (~Day 170, month 8) | Able to design and defend a scalable multi-tenant system |
+| **Phase 17** (~Day 240, month 11) | Able to run it in production yourself |
+| **Phase 19** (~Day 260, month 12) | The above, plus able to ship RAG features in Java — a genuinely scarce combination |
 | **Phase 21 + capstone** | Full-stack AI systems engineer, with a portfolio piece that proves it |
 
 ---

@@ -245,7 +245,7 @@ group can be **treated differently**.
 "A log file filled the disk and took down the server" is a real, common outage,
 and this layout is the defence against it. You'll meet exactly this reasoning
 again when you write Dockerfiles (Phase 4) and mount volumes in Kubernetes
-(Phase 17) — a container image is this same hierarchy, and a volume is you
+(Phase 15) — a container image is this same hierarchy, and a volume is you
 choosing which part of it survives.
 
 ### The directories worth knowing
@@ -707,7 +707,7 @@ Chatty, latency-bound work across a boundary. Same shape, different boundary:
 |---|---|---|
 | Here | 30k files x one round trip each | Keep the work on one side of the boundary |
 | **Phase 7 (JPA)** | N+1 queries — 1 query for a list, then 1 per row | `JOIN FETCH` / batch fetch |
-| **Phase 11 (system design)** | Microservice calls one service per item in a loop | Batch endpoint |
+| **Phase 9 (system design)** | Microservice calls one service per item in a loop | Batch endpoint |
 | **Phase 5 (concurrency)** | Serial blocking I/O calls | Parallelise so latencies overlap |
 
 The fix is always the same idea: **reduce the number of crossings, or overlap

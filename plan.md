@@ -79,7 +79,7 @@ into it. Set `umask 077` and observe what new files look like.
 - `top` / `htop`: load average, `%CPU` vs `%MEM`, what iowait means
 - **Signals**: `SIGTERM` vs `SIGKILL` vs `SIGHUP` vs `SIGINT`
 - Why `SIGTERM` matters — your Spring Boot app will need to handle it for
-  graceful shutdown in Kubernetes (Phase 17)
+  graceful shutdown in Kubernetes (Phase 15)
 - `kill`, `kill -9`, `pkill`, `killall`
 - Foreground/background: `&`, `Ctrl+Z`, `jobs`, `fg`, `bg`, `nohup`
 - Exit codes and `$?`
@@ -225,7 +225,7 @@ line. Draw the path a request takes from your browser to a server in AWS.
 - **CIDR notation**: reading `/24`, `/16`, `/26` fluently
 - Network address, broadcast, usable host range
 - Subnetting: splitting a range, and how many hosts you get
-- Why this matters concretely: VPC subnet planning (Phase 15) and pod CIDRs (Phase 17)
+- Why this matters concretely: VPC subnet planning (Phase 13) and pod CIDRs (Phase 15)
 - NAT: why your laptop and 50 others share one public IP
 - IPv6 at awareness level
 
@@ -304,7 +304,7 @@ wrong route) and confirm each tool identifies the right one.
 - Keep-alive and connection reuse
 - HTTP/1.1 vs HTTP/2 (multiplexing) vs HTTP/3 (QUIC)
 - Chunked transfer and streaming — the mechanism behind SSE, which your AI
-  endpoint will use in Phase 9
+  endpoint will use in Phase 18
 
 **Practice:** Use `curl -v` to inspect a full exchange. Trigger a 301 and follow
 it with `-L`. Send a conditional request with `If-None-Match` and get a 304.
@@ -321,7 +321,7 @@ it with `-L`. Send a conditional request with `If-None-Match` and get a 304.
 - Why self-signed certs fail, and when that's fine
 - SNI — how one IP serves many HTTPS sites
 - TLS termination at a proxy vs end-to-end encryption
-- **mTLS preview**: both sides present certificates — the foundation of Phase 18
+- **mTLS preview**: both sides present certificates — the foundation of Phase 16
 - Certificate expiry as a leading cause of outages
 
 **Practice:** Inspect a real site's chain with `openssl s_client -connect`.
@@ -356,7 +356,7 @@ DNS traffic with `tcpdump` while running `dig`.
 - `ufw` / `iptables` conceptually: chains, rules, default policies
 - Stateful vs stateless filtering
 - How this maps forward: AWS **Security Groups** (stateful) vs **NACLs**
-  (stateless) in Phase 15, and Kubernetes NetworkPolicies in Phase 17
+  (stateless) in Phase 13, and Kubernetes NetworkPolicies in Phase 15
 - Port forwarding and SSH tunnels
 - WSL2 networking: localhost forwarding from Windows, and its limits
 
@@ -760,10 +760,22 @@ become impossible to write. Add a builder.
 - Test names that document behaviour; Arrange–Act–Assert
 - What's worth testing; coverage as a diagnostic, not a target
 - Test doubles: stub vs mock vs fake; hand-rolled fakes vs Mockito
+- **Mockito** for real: `@Mock`, `when/thenReturn`, `verify`, `ArgumentCaptor`,
+  and why over-mocking makes tests that pass while the code is broken
+- **Testing time**: inject a `java.time.Clock` instead of calling `Instant.now()`,
+  so a test can fix "now" (this is how the Day 40 loan due dates become testable)
+- Red–green–refactor: write the failing test first, watch it fail for the right
+  reason
 
 **Practice:** Write a full suite for the Day 38 immutable class and the Day 37
 repository using a hand-written in-memory fake rather than a mock. Collapse
-three near-identical tests into one parameterized test.
+three near-identical tests into one parameterized test. Then test a
+"is this loan overdue?" method with a fixed `Clock`, and write one test with
+Mockito to see what a mock verifies that a fake doesn't.
+
+> If this day runs past two hours (it's the densest in Phase 3), split it: JUnit,
+> AssertJ and parameterized tests first; Mockito, `Clock` and red–green–refactor
+> in a second session. Say so rather than rushing.
 
 ---
 
@@ -778,7 +790,11 @@ three near-identical tests into one parameterized test.
   rewritten with lambdas and method references so the difference is visible
 - Stream-based queries: books by author, overdue loans, most-borrowed titles
 - `java.time` for loan and due dates, stored as `Instant`
-- Full JUnit 5 + AssertJ suite with parameterized tests
+- Full JUnit 5 + AssertJ suite with parameterized tests, built **test-first**
+  (red–green–refactor) for at least the overdue-loan rule
+- Time injected through a `Clock`, so overdue logic is tested without waiting
+- One Mockito-based test beside your fake-based ones, with a note on what each
+  proves
 - **Deliberately** ship `equals` without `hashCode` first, prove the `HashSet`
   bug in a test, then fix it
 
@@ -821,7 +837,7 @@ it exceeds the limit.
 - Image layers, how they stack, content-addressable digests
 - `docker pull`, `images`, `history`, `inspect`
 - Tags are mutable pointers — why `latest` is a trap
-- Registries: Docker Hub, ECR (Phase 15), authentication
+- Registries: Docker Hub, ECR (Phase 13), authentication
 - Base image choice: full vs slim vs alpine vs distroless
 - Image size: pull time and attack surface
 - Scanning images for vulnerabilities
@@ -837,7 +853,7 @@ the same digest.
 - `FROM`, `WORKDIR`, `COPY` vs `ADD`, `RUN`, `ENV`, `ARG`, `EXPOSE`, `USER`
 - **`CMD` vs `ENTRYPOINT`**, the exec form, and how they combine
 - Signal handling and PID 1 — why your Java process must receive `SIGTERM`
-  (the thread from Phase 1 Day 4, and it matters again in Phase 17)
+  (the thread from Phase 1 Day 4, and it matters again in Phase 15)
 - `.dockerignore` and build context size
 - Build args vs runtime environment variables
 - Never baking secrets into a layer — they persist even if a later layer
@@ -936,7 +952,7 @@ on startup to prove the ordering matters.
 
 **Practice:** Stand up the full stack. Connect to PostgreSQL from a Windows SQL
 client. Enable the `vector` extension and confirm it loads. **Save this Compose
-file — Phases 7, 8, 10, 13 and 14 all build on it.**
+file — Phases 7, 8, 11, 12 and 19 all build on it.**
 
 ---
 
@@ -1453,7 +1469,7 @@ Override one with your own and confirm from the report that yours won.
 - `application.yml` vs `application.properties`
 - **Property precedence** — command line, environment, profile-specific files,
   defaults — and why this order matters in containers (Phase 4) and
-  Kubernetes (Phase 17)
+  Kubernetes (Phase 15)
 - `@Value` vs **`@ConfigurationProperties`** (and why the latter is better:
   type-safe, validatable, grouped)
 - Relaxed binding, and how `MY_APP_TIMEOUT` maps to `my.app.timeout`
@@ -1471,7 +1487,7 @@ fast. Override one property four ways and confirm the precedence order.
 **Covers:**
 - What Actuator gives you: health, info, metrics, env, conditions, mappings
 - Health indicators, and writing a custom one
-- Liveness vs readiness probes (this is exactly what Kubernetes needs in Phase 17)
+- Liveness vs readiness probes (this is exactly what Kubernetes needs in Phase 15)
 - Exposing endpoints safely — and why `/actuator/env` must not be public
 - Micrometer basics and the metrics registry
 - Week 15 recap: container → beans → auto-config → configuration
@@ -1490,7 +1506,7 @@ degraded when a dependency is slow, and expose only health and metrics. Inspect
 **Covers:**
 - REST resource modelling: nouns not verbs, hierarchy, collection vs item
 - Choosing status codes deliberately: 200/201/204/400/404/409/422
-- **Idempotency** and why it decides whether a client may retry (Phase 13)
+- **Idempotency** and why it decides whether a client may retry (Phase 11)
 - `@RestController`, `@RequestMapping` and the method shortcuts
 - `@PathVariable`, `@RequestParam`, `@RequestBody`, `@RequestHeader`
 - `ResponseEntity` and setting status and headers explicitly
@@ -1611,7 +1627,7 @@ and latency. Plot the difference when you raise the pool size.
 - Return types: `void` (fire and forget, exceptions vanish), `Future`,
   `CompletableFuture`
 - **Exception handling in `@Async void`** — `AsyncUncaughtExceptionHandler`
-- When `@Async` is the right tool and when a queue (Phase 13) is better
+- When `@Async` is the right tool and when a queue (Phase 11) is better
 
 **Practice:** Write an `@Async` method and prove it runs on another thread by
 logging thread names. Then call it from a sibling method in the same class and
@@ -1656,7 +1672,7 @@ pool and prove the other is unaffected.
   request thread is released while the work runs
 - `DeferredResult` and `Callable` return types, and how they differ
 - **Server-Sent Events** with `SseEmitter` — the mechanism your AI streaming
-  endpoint uses in Phase 9
+  endpoint uses in Phase 18
 - Timeouts on async requests (`spring.mvc.async.request-timeout`)
 - When async controllers actually help, and when they just add complexity
 
@@ -1764,7 +1780,7 @@ watch it degrade gracefully instead.
 - Combining them, and the correct order
 - Fallbacks that degrade rather than fail
 - **Structured JSON logging**, MDC, correlation ids end to end
-- What never to log: tokens, passwords, PII (this matters in Phase 8 and 9)
+- What never to log: tokens, passwords, PII (this matters in Phase 8 and 18)
 - Log levels that mean something
 
 **Practice:** Wrap the Day 88 client in a circuit breaker; make the dependency
@@ -2073,7 +2089,7 @@ looking, then check yourself.
   that state lives, and why it's a problem across multiple instances
 - **Tokens**: state travels with the client, server keeps nothing
 - **The real trade-off**:
-  - Sessions — revocable instantly, but need shared storage (Redis, Phase 14)
+  - Sessions — revocable instantly, but need shared storage (Redis, Phase 12)
   - Tokens — scale statelessly, but you can't easily un-issue one
 - Where each is stored client-side, and the XSS vs CSRF implications of each
 - Why "just use JWT" is not automatically correct
@@ -2118,8 +2134,8 @@ factors 10, 12 and 14 and pick one with reasoning.
   "admin" account
 - Why you cannot reuse a user login for a background job
 - How machine identity is done in different places — the same problem, three
-  answers: client credentials (Phase 8), IAM roles (Phase 15), mTLS certificates
-  (Phase 18)
+  answers: client credentials (Phase 8), IAM roles (Phase 13), mTLS certificates
+  (Phase 16)
 - Credential rotation for machines
 - Auditing: knowing which service did what
 
@@ -2333,8 +2349,8 @@ token, and inspect what you receive.
 - Handling token fetch failure and clock skew
 - **Credential management**: one client per service, rotation, storage in a
   secret manager (never in `application.yml`)
-- How this compares to the alternatives: **IAM roles** (Phase 15) and **mTLS**
-  (Phase 18) — three answers to "how does a machine prove who it is"
+- How this compares to the alternatives: **IAM roles** (Phase 13) and **mTLS**
+  (Phase 16) — three answers to "how does a machine prove who it is"
 - Common mistakes: one shared service account for everything, over-broad scopes,
   a secret committed to Git
 
@@ -2407,7 +2423,7 @@ side so your second app's calls are authenticated automatically.
 - Fixes: `DelegatingSecurityContextAsyncTaskExecutor`,
   `SecurityContextHolder.setStrategyName(MODE_INHERITABLETHREADLOCAL)` and its
   dangers with pooled threads
-- Propagating identity into a background job or Kafka consumer (Phase 13) —
+- Propagating identity into a background job or Kafka consumer (Phase 11) —
   where there is no request at all
 - **CSRF**: what the attack actually is, step by step; why cookie-based auth is
   vulnerable and bearer-token auth generally isn't; when disabling it is correct
@@ -2458,7 +2474,7 @@ even a raw repository query returns nothing.
 - Expiry and rotation without downtime (overlapping keys)
 - Revocation, and why this is easier than JWT revocation
 - Writing a custom `AuthenticationFilter` for API keys alongside JWT auth
-- Rate limiting per key (Phase 14)
+- Rate limiting per key (Phase 12)
 
 **Practice:** Implement scoped API keys: generate, show once, store a prefix plus
 bcrypt hash, and authenticate with a custom filter that populates the
@@ -2475,11 +2491,11 @@ one and confirm it fails immediately.
     dynamic `Sort` can undo it
   - Mass assignment — why binding a request body straight to an entity is
     dangerous (Day 79)
-  - SSRF — user-supplied URLs, which matters when you ingest documents (Phase 10)
+  - SSRF — user-supplied URLs, which matters when you ingest documents (Phase 19)
   - Security misconfiguration, exposed actuator endpoints
   - Sensitive data in logs (Day 89)
 - **Security headers**: HSTS, CSP, `X-Content-Type-Options`, frame options
-- Secrets management: environment, vault, AWS Secrets Manager (Phase 15)
+- Secrets management: environment, vault, AWS Secrets Manager (Phase 13)
 - Auditing authentication and authorization events
 - **Testing security properly**: `spring-security-test`, `@WithMockUser`,
   `jwt()` post-processors — and the crucial point that you must test that access
@@ -2527,36 +2543,23 @@ you named as a career priority.
 These get expanded into day-level detail as you reach them. Ask to
 **"expand Phase 9 into the plan"** when you finish Phase 8.
 
+Order: **Scale and Operate come before AI.** You build, deploy and observe the
+platform first (Phases 9–17), then add AI to a system that already runs
+(Phases 18–19), then the AI systems specialism (Phases 20–21).
+
 | Phase | Topic | Days | Checkpoint |
 |-------|-------|------|-----------|
-| 9 | AI Foundations for Java Engineers | 126–135 | **Capstone M4** — typed AI summarization endpoint, SSE streaming, token/cost tracking, prompt-injection defence |
-| 10 | RAG & Vector Search with pgvector | 136–145 | **Capstone M5** — full RAG with HNSW, hybrid search, citations, 25-question eval set |
-| 11 | System Design Fundamentals | 146–160 | Written design doc for the capstone + a recorded 20-minute walkthrough |
-| 12 | Proxies, LBs & API Gateways | 161–170 | Nginx with TLS, rate limiting and health checks in front of two app instances; SSE verified through the proxy |
-| 13 | Async Messaging with Kafka | 171–180 | **Capstone M6** — async ingestion via outbox pattern, idempotent consumer, DLQ, audit topic |
-| 14 | Caching, Rate Limiting & Multi-Tenancy | 181–190 | **Capstone M7** — Redis semantic cache, Lua sliding-window limiter, noisy-neighbour demo |
-| 15 | AWS Core Services | 191–205 | Manual deploy: VPC, ECS Fargate, RDS, ElastiCache, ALB, Secrets Manager — then tear down |
-| 16 | Terraform & IaC | 206–215 | All of Phase 15 as modules with remote state; destroy and recreate from scratch |
-| 17 | Kubernetes & Orchestration | 216–235 | **Capstone M8** — full deploy to EKS with Helm, probes, HPA, RBAC, NetworkPolicies; then break it on purpose |
-| 18 | Istio Service Mesh & mTLS | 236–245 | Strict mTLS, authorization policies, 10% canary, circuit breaker triggered by fault injection |
-| 19 | Observability, CI/CD & GitOps | 246–260 | **Capstone M9** — Actions → ECR → ArgoCD, per-tenant RED dashboards, AI cost dashboard, alerts with runbooks |
+| 9 | System Design Fundamentals | 126–140 | Written design doc for the capstone + a recorded 20-minute walkthrough |
+| 10 | Proxies, LBs & API Gateways | 141–150 | Nginx with TLS, rate limiting and health checks in front of two app instances; SSE verified through the proxy |
+| 11 | Async Messaging with Kafka | 151–160 | **Capstone M4** — async document processing via outbox pattern, idempotent consumer, DLQ, audit topic |
+| 12 | Caching, Rate Limiting & Multi-Tenancy | 161–170 | **Capstone M5** — Redis tenant-scoped caching, Lua sliding-window limiter, noisy-neighbour demo |
+| 13 | AWS Core Services | 171–185 | Manual deploy: VPC, ECS Fargate, RDS, ElastiCache, ALB, Secrets Manager — then tear down |
+| 14 | Terraform & IaC | 186–195 | All of Phase 13 as modules with remote state; destroy and recreate from scratch |
+| 15 | Kubernetes & Orchestration | 196–215 | **Capstone M6** — full deploy to EKS with Helm, probes, HPA, RBAC, NetworkPolicies; then break it on purpose |
+| 16 | Istio Service Mesh & mTLS | 216–225 | Strict mTLS, authorization policies, 10% canary, circuit breaker triggered by fault injection |
+| 17 | Observability, CI/CD & GitOps | 226–240 | **Capstone M7** — Actions → ECR → ArgoCD, per-tenant RED dashboards, alerts with runbooks |
+| 18 | AI Foundations for Java Engineers | 241–250 | **Capstone M8** — typed AI summarization endpoint, SSE streaming, token/cost tracking and AI cost dashboard, prompt-injection defence |
+| 19 | RAG & Vector Search with pgvector | 251–260 | **Capstone M9** — full RAG with HNSW, hybrid search, citations, 25-question eval set; real chunk-and-embed in the Kafka consumer; semantic cache |
 | 20 | Agents, Tool Calling & MCP | 261–270 | **Capstone M10** — authorized, audited tools; your own MCP server; 20-task eval suite |
 | 21 | Self-Hosted Inference & GPU Serving | 271–280 | vLLM behind the Java gateway, KEDA autoscaling on GPU nodes, cost comparison, automatic fallback |
 | — | **Capstone integration** | 281–295 | Harden, load-test with Gatling, chaos-test, document and present |
-
----
-
-## Progress Log
-
-Fill this in as you finish each phase — it's the fastest way to see momentum.
-
-| Phase | Topic | Finished | Checkpoint done | Notes |
-|-------|-------|----------|-----------------|-------|
-| 1 | Linux & the Shell | | | |
-| 2 | Networking | | | |
-| 3 | Java Core (incl. Java 8) | | | |
-| 4 | Docker | | | |
-| 5 | Concurrency & Executors | | | |
-| 6 | Spring Boot & Async | | | |
-| 7 | PostgreSQL & JPA | | | |
-| 8 | Spring Security | | | |

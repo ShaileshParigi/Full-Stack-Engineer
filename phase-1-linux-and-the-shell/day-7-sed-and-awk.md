@@ -8,7 +8,7 @@ that swaps `localhost` for a real database host. `awk` is how you answer "which
 client is hammering us?", "how many bytes did we serve per status code?" and
 "which endpoint is slow?" from a raw access log in thirty seconds, on a box that
 has no Elasticsearch, no Grafana and no time. These two show up in every
-Dockerfile in Phase 4 and every Kubernetes init script in Phase 17.
+Dockerfile in Phase 4 and every Kubernetes init script in Phase 15.
 
 ---
 

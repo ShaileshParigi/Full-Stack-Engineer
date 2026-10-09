@@ -1,7 +1,7 @@
 # Detailed Learning Roadmap
 
-Java backend depth first, infrastructure interleaved, AI woven through — all
-converging on one capstone system.
+Java backend depth first, then scale and operations, then AI built on top of a
+platform that already runs — all converging on one capstone system.
 
 ---
 
@@ -13,15 +13,17 @@ Every production system has layers. Learn to think in all of them:
 |-------|-----------|---------|
 | **Core** | Foundations that outlive frameworks | Linux, networking, the Java language, containers |
 | **Java workload** | The services you write | Spring Boot, JPA, Spring Security, concurrency |
-| **AI** | LLMs as a component, in your language | Spring AI, embeddings, RAG, pgvector |
 | **Scale** | Surviving load and many tenants | System design, gateways, Kafka, caching |
 | **Operate** | Running it for real | AWS, Terraform, Kubernetes, Istio, observability, GitOps |
+| **AI** | LLMs as a component, in your language | Spring AI, embeddings, RAG, pgvector |
 | **AI systems** | The specialism | Agents, tool calling, MCP, self-hosted inference |
 
 A note on ordering: Docker arrives early (Phase 4) because almost everything
 after it — PostgreSQL, Redis, Kafka, Keycloak — is easiest to run as a
-container. System design lands mid-roadmap (Phase 11) once you have enough
-concrete experience for the abstractions to mean something.
+container. System design lands right after the Java phases (Phase 9) once you
+have enough concrete experience for the abstractions to mean something. AI comes
+after Scale and Operate (Phases 18–19): you build and run the platform first,
+then add AI to a system that already deploys, scales and is observable.
 
 ---
 
@@ -133,7 +135,7 @@ later instead of magical.
 - Keep-alive and connection reuse
 - HTTP/1.1 vs HTTP/2 vs HTTP/3
 - **TLS handshake** — certificates, chain of trust, CA, SNI. This is the
-  foundation for mTLS in Phase 18, so don't skim it.
+  foundation for mTLS in Phase 16, so don't skim it.
 - Self-signed certs, and why browsers complain
 
 **Diagnostics** — build the reflex
@@ -230,7 +232,9 @@ This is the week that makes the rest of Java readable.
   because Spring is built on the latter
 - Composition over inheritance; immutability as a default; builders
 - Package structure: by feature, not by layer
-- Testing: JUnit 5, AssertJ, parameterized tests, `@Nested`, hand-rolled fakes
+- Testing: JUnit 5, AssertJ, parameterized tests, `@Nested`, hand-rolled fakes,
+  Mockito (and when not to), testing time with an injected `Clock`,
+  red–green–refactor
 - Maven: lifecycle phases, dependency scopes, the dependency tree, BOMs
 
 ### Resources
@@ -649,7 +653,7 @@ every filter in the chain and defend every decision.
   - Scopes as machine permissions
   - Why a service account should be least-privilege and per-service, not one
     shared "admin" account
-  - How this compares to mTLS (Phase 18) and IAM roles (Phase 15) — three
+  - How this compares to mTLS (Phase 16) and IAM roles (Phase 13) — three
     answers to the same question
 - Why the implicit flow is dead
 - **OIDC on top of OAuth2**: `id_token` (who you are) vs `access_token` (what
@@ -674,7 +678,7 @@ every filter in the chain and defend every decision.
 - **Testing security**: `@WithMockUser`, `spring-security-test`, `jwt()`
   post-processors — and testing that authorization actually **denies**, which
   is the test people forget
-- Preview of mTLS (Phase 18): certificates as identity
+- Preview of mTLS (Phase 16): certificates as identity
 
 ### Resources
 - [Spring Security reference](https://docs.spring.io/spring-security/reference/)
@@ -702,114 +706,11 @@ every filter in the chain and defend every decision.
 
 ---
 
-# AI
-
----
-
-## Phase 9: AI Foundations for Java Engineers (2 weeks — Days 126–135)
-
-The pivot point. You use AI daily but haven't built with it. This phase gives
-you the mental model and the Java toolchain — no Python required.
-
-### What to Learn
-
-**Week 1 — how these things actually work**
-- Tokens, context windows, and why cost and latency scale with them
-- Temperature, top-p, stop sequences, max tokens
-- What a model can and cannot do; hallucination as a structural property, not
-  a bug to be patched
-- **Embeddings**: text as vectors, cosine similarity, what "semantically near"
-  means
-- Chat vs completion vs embedding models
-- Prompt engineering that matters in production: system prompts, few-shot,
-  structured output, delimiters
-- Getting **JSON out reliably** — schemas, structured outputs, validation and
-  repair
-- Model selection and the cost/latency/quality triangle
-- Provider landscape: Anthropic, OpenAI, AWS Bedrock, Azure OpenAI, local models
-
-**Week 2 — Spring AI**
-- Spring AI project structure, `ChatClient`, `ChatModel` abstractions
-- Configuring a provider; swapping providers without rewriting code
-- Prompt templates and `@Value`-style substitution
-- **Streaming responses** — SSE from a Spring controller to a client
-- Mapping model output to Java records (structured output converters)
-- Advisors and the chat memory abstraction
-- Token usage tracking and cost accounting
-- Timeouts, retries, and backoff for a dependency that's slow and flaky
-- Caching identical requests
-- Observability: logging prompts and responses without leaking PII
-- Guardrails: input validation, output filtering, prompt injection awareness
-- Evaluation basics — how you know a prompt change made things better
-
-### Resources
-- [Spring AI reference](https://docs.spring.io/spring-ai/reference/)
-- [Anthropic docs — prompt engineering](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview)
-- [LangChain4j docs](https://docs.langchain4j.dev/) — the main alternative; worth knowing
-- [What are embeddings? (free book)](https://vickiboykis.com/what_are_embeddings/)
-
-### Checkpoint Project
-**Capstone milestone 4.** Add an AI endpoint to the document API: summarize a
-document, returning a typed Java record, not a string. Stream the response over
-SSE. Record token usage and estimated cost per tenant. Add a deliberately
-injectable prompt, exploit it, then defend against it. Write an eval harness
-that scores 20 fixed inputs so you can compare two prompt versions.
-
----
-
-## Phase 10: RAG & Vector Search with pgvector (2 weeks — Days 136–145)
-
-Retrieval-Augmented Generation is the workhorse pattern of enterprise AI, and
-pgvector means you can do it in the database you already run.
-
-### What to Learn
-
-**Week 1 — retrieval**
-- Why RAG exists: grounding answers in your data instead of the model's memory
-- The pipeline: ingest → chunk → embed → store → retrieve → rerank → generate
-- **Chunking strategies**: fixed size, sentence, recursive, semantic — and how
-  chunk size trades recall against precision
-- Overlap and why it matters
-- Metadata to store alongside each chunk (tenant, source, page, timestamp)
-- **pgvector**: the `vector` type, distance operators (`<->`, `<=>`, `<#>`)
-- Indexing vectors: **HNSW vs IVFFlat**, build time vs query time vs recall
-- Why an exact scan is fine until it isn't
-- Spring AI `VectorStore` with the PostgreSQL implementation
-
-**Week 2 — making it good**
-- **Hybrid search**: combining vector similarity with PostgreSQL full-text
-  search, and why pure vector search misses exact terms like error codes
-- Reciprocal Rank Fusion for merging result sets
-- Reranking with a cross-encoder
-- Query rewriting and multi-query expansion
-- **Tenant isolation in a vector store** — filtering by `tenant_id` before
-  similarity, and why post-filtering is both slow and a data leak
-- Citations: returning which chunk an answer came from
-- Handling "I don't know" — the most under-implemented feature in RAG
-- **Evaluating RAG**: retrieval metrics (recall@k, MRR) separately from
-  generation quality; building a small golden dataset
-- Incremental re-indexing when a document changes
-- Cost control: caching embeddings, batching
-
-### Resources
-- [pgvector README](https://github.com/pgvector/pgvector) — genuinely the best reference
-- [Spring AI — RAG](https://docs.spring.io/spring-ai/reference/api/retrieval-augmented-generation.html)
-- [Anthropic — contextual retrieval](https://www.anthropic.com/news/contextual-retrieval)
-
-### Checkpoint Project
-**Capstone milestone 5.** Full RAG over tenant documents: ingestion pipeline
-with configurable chunking, embeddings in pgvector with an HNSW index, hybrid
-search fused with full-text, tenant-filtered retrieval enforced by RLS, answers
-returned with citations, and an eval set of 25 questions scoring retrieval and
-answer quality. Compare two chunking strategies with numbers, not vibes.
-
----
-
 # SCALE
 
 ---
 
-## Phase 11: System Design Fundamentals (3 weeks — Days 146–160)
+## Phase 9: System Design Fundamentals (3 weeks — Days 126–140)
 
 You named this as a goal, and now you have enough concrete experience for it to
 be more than vocabulary. This phase is as much about *explaining* designs as
@@ -848,7 +749,8 @@ choosing them.
 - **Designing under interview conditions**: requirements → constraints →
   high-level → deep dive → bottlenecks → trade-offs
 - Practice designs: URL shortener, rate limiter, news feed, chat, notification
-  service, and — most relevant to you — a multi-tenant RAG platform
+  service, and — most relevant to you — a multi-tenant RAG platform (on paper:
+  you build its AI parts in Phases 18–19)
 
 ### Resources
 - [Designing Data-Intensive Applications (Kleppmann)](https://dataintensive.net/) — chapters 1, 5, 6, 7, 8, 9, 11
@@ -859,11 +761,11 @@ choosing them.
 Write a full design document for the capstone platform: requirements, capacity
 estimates, component diagram, data model, API contracts, failure modes, and
 explicit trade-offs with rejected alternatives. Then record yourself explaining
-it in 20 minutes. This document becomes the reference for Phases 15–21.
+it in 20 minutes. This document becomes the reference for Phases 13–21.
 
 ---
 
-## Phase 12: Proxies, Load Balancers & API Gateways (2 weeks — Days 161–170)
+## Phase 10: Proxies, Load Balancers & API Gateways (2 weeks — Days 141–150)
 
 Every request from outside hits a proxy before your Java code. Understanding
 this layer separates people who write services from people who design how
@@ -888,7 +790,7 @@ services connect.
 
 **Envoy**
 - Listeners, clusters, routes, filters
-- Why it matters: it's the data plane of Istio in Phase 18
+- Why it matters: it's the data plane of Istio in Phase 16
 
 **API gateways** — what they add over a plain proxy
 - Auth enforcement at the edge, per-consumer rate limiting, transformation,
@@ -901,7 +803,8 @@ services connect.
 **Patterns**
 - Path- and header-based routing
 - Canary by header
-- WebSocket and SSE proxying (your AI streaming endpoint has to survive this)
+- WebSocket and SSE proxying (the AI streaming endpoint you'll build in Phase 18
+  has to survive this)
 - Timeouts at every hop, and why the gateway timeout must exceed the app's
 
 ### Resources
@@ -917,7 +820,7 @@ proxy. Then swap in Spring Cloud Gateway and compare what each layer is good at.
 
 ---
 
-## Phase 13: Async Messaging with Kafka (2 weeks — Days 171–180)
+## Phase 11: Async Messaging with Kafka (2 weeks — Days 151–160)
 
 Synchronous calls couple services together. Your document ingestion pipeline —
 upload, chunk, embed, index — is slow and bursty, which makes it the perfect
@@ -955,16 +858,18 @@ thing to make asynchronous.
 - [DDIA chapter 11](https://dataintensive.net/)
 
 ### Checkpoint Project
-**Capstone milestone 6.** Make ingestion asynchronous: upload returns a job id
-immediately and publishes an event; a consumer chunks and embeds the document
-and writes results back; the client polls or subscribes for completion. Use the
+**Capstone milestone 4.** Make document processing asynchronous: upload returns
+a job id immediately and publishes an event; a consumer processes the document
+(for now: extract the text, compute a checksum and a word count — a placeholder
+for the chunk-and-embed step you plug in at Phase 19) and writes results back;
+the client polls or subscribes for completion. Use the
 outbox pattern so the DB write and the event publish can't diverge. Add a DLQ
 with a retry topic, make the consumer idempotent, prove it by replaying the same
 event twice, and add an audit-log topic.
 
 ---
 
-## Phase 14: Caching, Rate Limiting & Multi-Tenancy (2 weeks — Days 181–190)
+## Phase 12: Caching, Rate Limiting & Multi-Tenancy (2 weeks — Days 161–170)
 
 The patterns that turn "an app" into "a SaaS product."
 
@@ -976,7 +881,6 @@ The patterns that turn "an app" into "a SaaS product."
 - Cache patterns: cache-aside, read-through, write-through, write-behind
 - TTL strategy, eviction policies, memory limits
 - **Cache stampede** and how to prevent it (locking, early recompute, jitter)
-- Caching AI responses: semantic caching by embedding similarity
 - Distributed locks with Redis — and why `SETNX` alone isn't safe
 - Session storage; sticky sessions vs shared state
 - Redis persistence, replication, cluster mode
@@ -1001,11 +905,13 @@ The patterns that turn "an app" into "a SaaS product."
 - [AWS SaaS multi-tenancy whitepaper](https://docs.aws.amazon.com/whitepapers/latest/saas-architecture-fundamentals/tenant-isolation.html)
 
 ### Checkpoint Project
-**Capstone milestone 7.** Add Redis: cache document summaries and embeddings
-with tenant-scoped keys, implement a sliding-window rate limiter in Lua (100
-req/min per tenant, 10/min per user) returning correct 429s and headers, add
-semantic caching for AI answers, and load-test to demonstrate one tenant hitting
-its quota while another is completely unaffected.
+**Capstone milestone 5.** Add Redis: cache document metadata and other
+read-heavy responses with tenant-scoped keys, implement a sliding-window rate
+limiter in Lua (100 req/min per tenant, 10/min per user) returning correct 429s
+and headers, and load-test to demonstrate one tenant hitting its quota while
+another is completely unaffected. (Caching summaries and embeddings, and
+semantic caching for AI answers, move to Phase 19, once the AI endpoint and
+embeddings exist.)
 
 ---
 
@@ -1013,7 +919,7 @@ its quota while another is completely unaffected.
 
 ---
 
-## Phase 15: AWS Core Services (3 weeks — Days 191–205)
+## Phase 13: AWS Core Services (3 weeks — Days 171–185)
 
 Where the capstone will actually live. Concepts transfer to other clouds.
 
@@ -1034,8 +940,7 @@ Where the capstone will actually live. Concepts transfer to other clouds.
 - Lambda: when serverless genuinely fits
 - S3: buckets, policies, presigned URLs, lifecycle, storage classes
 - EBS vs EFS
-- **RDS PostgreSQL**: Multi-AZ, read replicas, parameter groups, backups,
-  and enabling pgvector
+- **RDS PostgreSQL**: Multi-AZ, read replicas, parameter groups, backups
 - ElastiCache Redis
 - MSK if you want managed Kafka
 
@@ -1055,14 +960,14 @@ Where the capstone will actually live. Concepts transfer to other clouds.
 
 ### Checkpoint Project
 Deploy the capstone manually — console and CLI, no Terraform yet. VPC with
-public and private subnets, ECS Fargate for the app, RDS PostgreSQL with
-pgvector in a private subnet, ElastiCache Redis, ALB in public subnets, secrets
+public and private subnets, ECS Fargate for the app, RDS PostgreSQL in
+a private subnet, ElastiCache Redis, ALB in public subnets, secrets
 in Secrets Manager, image in ECR. Set a billing alarm first. Tear it all down
 and confirm the bill returns to zero.
 
 ---
 
-## Phase 16: Terraform & Infrastructure as Code (2 weeks — Days 206–215)
+## Phase 14: Terraform & Infrastructure as Code (2 weeks — Days 186–195)
 
 Clicking in a console doesn't scale, can't be reviewed, and can't be recreated.
 
@@ -1089,14 +994,14 @@ Clicking in a console doesn't scale, can't be reviewed, and can't be recreated.
 - [Terraform: Up & Running (Brikman)](https://www.terraformupandrunning.com/)
 
 ### Checkpoint Project
-Recreate all of Phase 15 in Terraform: remote state in S3 with locking,
+Recreate all of Phase 13 in Terraform: remote state in S3 with locking,
 reusable modules for network / data / app, separate dev and prod variable
 files, and zero diff on a second `plan` after `apply`. Destroy and recreate the
 whole environment from scratch to prove it's reproducible.
 
 ---
 
-## Phase 17: Kubernetes & Orchestration (4 weeks — Days 216–235)
+## Phase 15: Kubernetes & Orchestration (4 weeks — Days 196–215)
 
 The longest phase, because Kubernetes is genuinely large. Everything you
 learned about Linux, networking, and containers pays off here.
@@ -1151,7 +1056,7 @@ learned about Linux, networking, and containers pays off here.
 - [EKS Workshop](https://www.eksworkshop.com/)
 
 ### Checkpoint Project
-**Capstone milestone 8.** Deploy the whole platform to EKS: Deployments for the
+**Capstone milestone 6.** Deploy the whole platform to EKS: Deployments for the
 app and consumers, Services, Ingress with TLS, ConfigMaps and Secrets, correct
 resource requests/limits with JVM flags to match, all three probes, an HPA, a
 PodDisruptionBudget, RBAC and NetworkPolicies, and a Helm chart wrapping it —
@@ -1160,7 +1065,7 @@ delete pods, exhaust memory, fail a probe, and watch it recover.
 
 ---
 
-## Phase 18: Istio Service Mesh & mTLS (2 weeks — Days 236–245)
+## Phase 16: Istio Service Mesh & mTLS (2 weeks — Days 216–225)
 
 With several services talking to each other, every pair needs encryption,
 retries, timeouts, and observability. A mesh moves all of it out of your
@@ -1213,7 +1118,7 @@ a circuit breaker and trigger it with injected faults.
 
 ---
 
-## Phase 19: Observability, CI/CD & GitOps (3 weeks — Days 246–260)
+## Phase 17: Observability, CI/CD & GitOps (3 weeks — Days 226–240)
 
 A system you can't see is a system you can't operate. This phase also covers
 the delivery pipeline that makes shipping boring.
@@ -1230,7 +1135,6 @@ the delivery pipeline that makes shipping boring.
 - Grafana dashboards that answer a question rather than showing everything
 - **Logs**: structured JSON, correlation IDs, Loki, and what never to log
 - **Tracing**: OpenTelemetry, spans, context propagation, Tempo/Jaeger
-- Instrumenting the AI calls: token counts, cost, latency per model, cache hit rate
 - **Alerting**: symptom-based not cause-based, SLIs and SLOs, error budgets,
   and alert fatigue as a real failure mode
 
@@ -1261,12 +1165,132 @@ the delivery pipeline that makes shipping boring.
 - [OpenTelemetry Java](https://opentelemetry.io/docs/languages/java/)
 
 ### Checkpoint Project
-**Capstone milestone 9.** Full pipeline: GitHub Actions CI to ECR with OIDC
+**Capstone milestone 7.** Full pipeline: GitHub Actions CI to ECR with OIDC
 auth, ArgoCD syncing the cluster from a config repo with self-healing on,
-Prometheus and Grafana with per-tenant RED dashboards plus an AI cost dashboard,
-Loki for logs and Tempo for traces with correlation IDs flowing end to end,
-alerts on error rate and consumer lag, and a runbook for each alert. Push a bad
-commit and demonstrate rollback.
+Prometheus and Grafana with per-tenant RED dashboards (the AI cost dashboard
+is added in Phase 18, once there are AI calls to measure), Loki for logs and
+Tempo for traces with correlation IDs flowing end to end, alerts on error rate
+and consumer lag, and a runbook for each alert. Push a bad commit and
+demonstrate rollback.
+
+---
+
+# AI
+
+---
+
+## Phase 18: AI Foundations for Java Engineers (2 weeks — Days 241–250)
+
+The pivot point. You use AI daily but haven't built with it. This phase gives
+you the mental model and the Java toolchain — no Python required.
+
+### What to Learn
+
+**Week 1 — how these things actually work**
+- Tokens, context windows, and why cost and latency scale with them
+- Temperature, top-p, stop sequences, max tokens
+- What a model can and cannot do; hallucination as a structural property, not
+  a bug to be patched
+- **Embeddings**: text as vectors, cosine similarity, what "semantically near"
+  means
+- Chat vs completion vs embedding models
+- Prompt engineering that matters in production: system prompts, few-shot,
+  structured output, delimiters
+- Getting **JSON out reliably** — schemas, structured outputs, validation and
+  repair
+- Model selection and the cost/latency/quality triangle
+- Provider landscape: Anthropic, OpenAI, AWS Bedrock, Azure OpenAI, local models
+
+**Week 2 — Spring AI**
+- Spring AI project structure, `ChatClient`, `ChatModel` abstractions
+- Configuring a provider; swapping providers without rewriting code
+- Prompt templates and `@Value`-style substitution
+- **Streaming responses** — SSE from a Spring controller to a client
+- Mapping model output to Java records (structured output converters)
+- Advisors and the chat memory abstraction
+- Token usage tracking and cost accounting
+- **Instrumenting the AI calls** on the Phase 17 Prometheus/Grafana stack: token
+  counts, cost, latency per model, cache hit rate
+- Timeouts, retries, and backoff for a dependency that's slow and flaky
+- Caching identical requests
+- Observability: logging prompts and responses without leaking PII
+- Guardrails: input validation, output filtering, prompt injection awareness
+- Evaluation basics — how you know a prompt change made things better
+
+### Resources
+- [Spring AI reference](https://docs.spring.io/spring-ai/reference/)
+- [Anthropic docs — prompt engineering](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview)
+- [LangChain4j docs](https://docs.langchain4j.dev/) — the main alternative; worth knowing
+- [What are embeddings? (free book)](https://vickiboykis.com/what_are_embeddings/)
+
+### Checkpoint Project
+**Capstone milestone 8.** Add an AI endpoint to the document API: summarize a
+document, returning a typed Java record, not a string. Stream the response over
+SSE. Record token usage and estimated cost per tenant, export them as Micrometer
+metrics, and add an **AI cost dashboard** to the Phase 17 Grafana. Deploy the
+endpoint through the Phase 17 pipeline. Add a deliberately
+injectable prompt, exploit it, then defend against it. Write an eval harness
+that scores 20 fixed inputs so you can compare two prompt versions.
+
+---
+
+## Phase 19: RAG & Vector Search with pgvector (2 weeks — Days 251–260)
+
+Retrieval-Augmented Generation is the workhorse pattern of enterprise AI, and
+pgvector means you can do it in the database you already run.
+
+### What to Learn
+
+**Week 1 — retrieval**
+- Why RAG exists: grounding answers in your data instead of the model's memory
+- The pipeline: ingest → chunk → embed → store → retrieve → rerank → generate
+- **Chunking strategies**: fixed size, sentence, recursive, semantic — and how
+  chunk size trades recall against precision
+- Overlap and why it matters
+- Metadata to store alongside each chunk (tenant, source, page, timestamp)
+- **pgvector**: the `vector` type, distance operators (`<->`, `<=>`, `<#>`)
+- Indexing vectors: **HNSW vs IVFFlat**, build time vs query time vs recall
+- Why an exact scan is fine until it isn't
+- Spring AI `VectorStore` with the PostgreSQL implementation
+
+**Week 2 — making it good**
+- **Hybrid search**: combining vector similarity with PostgreSQL full-text
+  search, and why pure vector search misses exact terms like error codes
+- Reciprocal Rank Fusion for merging result sets
+- Reranking with a cross-encoder
+- Query rewriting and multi-query expansion
+- **Tenant isolation in a vector store** — filtering by `tenant_id` before
+  similarity, and why post-filtering is both slow and a data leak
+- Citations: returning which chunk an answer came from
+- Handling "I don't know" — the most under-implemented feature in RAG
+- **Evaluating RAG**: retrieval metrics (recall@k, MRR) separately from
+  generation quality; building a small golden dataset
+- Incremental re-indexing when a document changes
+- Cost control: caching embeddings, batching
+- **Semantic caching** for AI answers by embedding similarity (moved here from
+  Phase 12, now that embeddings exist), plus tenant-scoped caching of summaries
+  and embeddings in Redis
+- **Enabling pgvector on RDS PostgreSQL** (moved here from Phase 13): extension
+  version support, parameter groups, and the same setup in your Helm chart and
+  Terraform
+- Plugging the chunk-and-embed step into the Phase 11 async ingestion consumer
+
+### Resources
+- [pgvector README](https://github.com/pgvector/pgvector) — genuinely the best reference
+- [Spring AI — RAG](https://docs.spring.io/spring-ai/reference/api/retrieval-augmented-generation.html)
+- [Anthropic — contextual retrieval](https://www.anthropic.com/news/contextual-retrieval)
+
+### Checkpoint Project
+**Capstone milestone 9.** Full RAG over tenant documents: ingestion pipeline
+with configurable chunking, embeddings in pgvector with an HNSW index, hybrid
+search fused with full-text, tenant-filtered retrieval enforced by RLS, answers
+returned with citations, and an eval set of 25 questions scoring retrieval and
+answer quality. Compare two chunking strategies with numbers, not vibes. Replace the
+placeholder step in the Phase 11 async consumer with real chunk-and-embed, run
+pgvector on RDS and in the Helm chart, and add the Redis caching deferred from
+Phase 12 — cached summaries and embeddings with tenant-scoped keys and a
+semantic cache for AI answers — then measure its hit rate on the Phase 18
+dashboard.
 
 ---
 

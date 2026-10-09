@@ -11,8 +11,8 @@ of those you actually understand.
 > **Capstone note — this is a deliberate side-quest.** The capstone codebase
 > starts with Spring Boot in Phase 6. But three ideas here come back for real:
 > the **sliding-window counter** is the same algorithm as the Redis rate limiter
-> in Phase 14; **threshold + cooldown** is how Prometheus alert rules and
-> Alertmanager work in Phase 19; and a **webhook POST** is the shape of every
+> in Phase 12; **threshold + cooldown** is how Prometheus alert rules and
+> Alertmanager work in Phase 17; and a **webhook POST** is the shape of every
 > alert integration (Slack, PagerDuty, Teams).
 
 > **How to use this file.** Do Step 0, then build `logwatch.sh` yourself,
@@ -600,9 +600,9 @@ never alerts. The sliding window sees all five. That's question 2.
 | Algorithm | Stores | Accuracy | Where you'll meet it |
 |---|---|---|---|
 | **Fixed window** | One counter per period | Misses bursts across boundaries | Simple rate limits |
-| **Sliding window log** (yours) | Every event's timestamp in the window | Exact | Redis sorted set + `ZREMRANGEBYSCORE` (Phase 14) |
+| **Sliding window log** (yours) | Every event's timestamp in the window | Exact | Redis sorted set + `ZREMRANGEBYSCORE` (Phase 12) |
 | **Sliding window counter** | Counters for the current and previous period, weighted | Close, constant memory | High-volume rate limiters |
-| **Token bucket** | A token count and a last-refill time | Allows controlled bursts | API gateways (Phase 12) |
+| **Token bucket** | A token count and a last-refill time | Allows controlled bursts | API gateways (Phase 10) |
 
 Your version stores one timestamp per match inside the window. For errors in a
 60-second window that's tiny. For "requests per client per hour" at 10,000
@@ -614,7 +614,7 @@ You timestamp a match when **you read it**, not with the date inside the line.
 That's simpler and immune to wrong clocks on the machine that wrote the log. The
 cost: if the watcher falls behind — or you replay an old file — timing is
 distorted. Choosing between "when it happened" and "when we saw it" is a central
-question in stream processing, and it comes back with Kafka in Phase 13.
+question in stream processing, and it comes back with Kafka in Phase 11.
 
 **Check yourself:** section 4 of the harness tests the window. Also watch your
 own stderr: with `-w 5`, matches more than 5 seconds apart should never add up.

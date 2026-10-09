@@ -245,7 +245,7 @@ capacity in every packet. You'll see its effect on the MSS in hands-on 4.
 **Why you care:** when some link on the path has a smaller MTU than the sender
 assumes and the "too big" signal gets blocked, small requests work and large
 ones silently hang. It looks exactly like a flaky app. VPNs, tunnels and
-Kubernetes overlay networks (Phase 17) all add headers and all hit this.
+Kubernetes overlay networks (Phase 15) all add headers and all hit this.
 
 > **Say this in an interview:** "Each layer prepends a header — Ethernet, then
 > IP, then TCP, then the application payload — and each header has a field
@@ -546,7 +546,7 @@ things to misconfigure) it adds.
 | Device | Layer | Reads | Decides / does | Rewrites | Where you'll meet it |
 |--------|-------|-------|----------------|----------|----------------------|
 | **Switch** | L2 | Dst MAC | Which physical port to send the frame out of | Nothing | Your home router's LAN ports; Hyper-V's virtual switch under WSL |
-| **Router** | L3 | Dst IP | Next hop, from its routing table | MACs (new frame), TTL | Your home router; AWS VPC route tables (Phase 15) |
+| **Router** | L3 | Dst IP | Next hop, from its routing table | MACs (new frame), TTL | Your home router; AWS VPC route tables (Phase 13) |
 | **NAT gateway** | L3/L4 | IPs, ports | Share one public IP among many machines | **Src IP and port** | Windows under WSL, your home router, AWS NAT Gateway |
 | **Firewall** | L3/L4 | IPs, protocol, ports (stateful ones track connections) | Allow or drop | Nothing | `iptables`/`ufw` (Day 19), **AWS Security Groups** (stateful) and NACLs (stateless) |
 | **L4 load balancer** | L4 | IPs, ports | Picks a backend per **TCP connection**, forwards bytes without reading them | Dst IP (or nothing) | **AWS NLB**; a **Kubernetes Service** (kube-proxy iptables rules) |

@@ -2,7 +2,7 @@
 
 _Why this matters:_ HTTP is the protocol of almost everything you'll build:
 every Spring `@RestController`, every call to another service, every load
-balancer health check, and — in Phase 9 — every streamed token from an AI model.
+balancer health check, and — in Phase 18 — every streamed token from an AI model.
 Most HTTP bugs aren't syntax bugs; they're **meaning** bugs. A `POST` retried
 after a timeout charges a customer twice. A `403` where a `401` belongs makes a
 client give up instead of logging in again. A redirect silently turns a `POST`
@@ -261,7 +261,7 @@ every POST through it silently becomes an empty GET.
 | `406 Not Acceptable` | I can't produce any format you `Accept` | httpbin `/image` with `Accept: text/plain` → `406` |
 | `409 Conflict` | Your request clashes with the current state | Duplicate username; editing a record someone else changed since you read it |
 | `415 Unsupported Media Type` | I don't accept that `Content-Type` | Sending XML to a JSON-only endpoint |
-| `429 Too Many Requests` | Slow down | Rate limiting; should include `Retry-After` (seconds). Phase 14 builds this with Redis |
+| `429 Too Many Requests` | Slow down | Rate limiting; should include `Retry-After` (seconds). Phase 12 builds this with Redis |
 
 Question 2: **the reviewer is right.** "No token" is an *authentication* failure
 → `401` with `WWW-Authenticate: Bearer`. A well-behaved client treats `401` as
@@ -460,7 +460,7 @@ rm -f "$jar"
   three app instances behind a load balancer, instance B doesn't have the session
   instance A created. Two fixes: **sticky sessions** (the LB pins a user to one
   instance — breaks when that instance dies) or a **shared session store**
-  (Spring Session + Redis — Phase 14).
+  (Spring Session + Redis — Phase 12).
 - **Token-based** (JWT in an `Authorization: Bearer` header or a cookie): the
   token itself carries the identity, signed, so any instance can check it
   without shared storage. Harder to revoke before it expires. Phase 8 compares
@@ -620,7 +620,7 @@ data: [DONE]
 
 **This is how AI APIs stream.** OpenAI's and Anthropic's APIs, with `stream:
 true`, return `text/event-stream` and send each generated piece as a `data:`
-event; Spring AI's streaming calls in Phase 9 consume exactly this, and in Spring
+event; Spring AI's streaming calls in Phase 18 consume exactly this, and in Spring
 you'd produce it with `SseEmitter` or a `Flux<ServerSentEvent<…>>`. Hands-on 11
 builds both ends in plain Java so you can see the tokens arrive.
 

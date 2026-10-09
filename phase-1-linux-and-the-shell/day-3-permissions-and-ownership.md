@@ -504,7 +504,7 @@ $ getcap /bin/ping
 them. **Capabilities** slice root's authority into roughly 40 separate
 privileges and grant only the one needed, so a bug in `ping` gets an attacker
 raw sockets rather than the whole machine. Remember this name — it returns in
-Phase 17/18 as `securityContext.capabilities` in a Kubernetes pod spec, and
+Phase 15/16 as `securityContext.capabilities` in a Kubernetes pod spec, and
 "drop ALL, add only what's needed" is the same principle.
 
 An uppercase `S` (rather than `s`) means setuid is set but `x` is **not** —

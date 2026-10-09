@@ -253,7 +253,7 @@ echo "== reverse lookup of 8.8.8.8"; dig @8.8.8.8 +noall +answer -x 8.8.8.8
 - So **the zone apex can't be a CNAME** — `example.com` itself must have NS and
   SOA records. You can't do `example.com CNAME my-alb.elb.amazonaws.com`. Route 53
   works around this with **alias records**: an A record that Route 53 fills in
-  from the load balancer's current IPs. You'll use one in Phase 15.
+  from the load balancer's current IPs. You'll use one in Phase 13.
 - Each CNAME hop is another lookup (if not cached). Chains of three or four
   CNAMEs are common with CDNs and add latency to cold lookups.
 
@@ -542,7 +542,7 @@ The resolver inside every AWS VPC sits at the **VPC CIDR base + 2** — e.g.
 `10.0.0.2` for `10.0.0.0/16`. That's one of the five reserved addresses from
 Day 12.
 
-### Service discovery by DNS (preview of Phase 4 and 17)
+### Service discovery by DNS (preview of Phase 4 and 15)
 
 - **Docker Compose:** each service name (`db`, `redis`) resolves to that
   container's IP via Docker's embedded DNS server at `127.0.0.11`.

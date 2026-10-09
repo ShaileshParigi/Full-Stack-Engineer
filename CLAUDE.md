@@ -79,14 +79,19 @@ Rules that follow from this:
 Full plan in `roadmap.md`. Overview in `README.md`. Day-by-day in `plan.md`.
 
 **21 phases, ~295 weekdays (~59 weeks) at 1–2 hrs/day, weekdays only**, across
-five tracks:
+six tracks:
 
 - **Core** — Linux (1), Networking (2), Java Core incl. Java 8 (3), Docker (4)
 - **Java workload** — Concurrency + executors (5), Spring Boot incl. async (6), PostgreSQL + JPA (7), Spring Security (8)
-- **AI** — AI foundations for Java (9), RAG + pgvector (10)
-- **Scale** — System design (11), Proxies + gateways (12), Kafka (13), Caching + multi-tenancy (14)
-- **Operate** — AWS (15), Terraform (16), Kubernetes (17), Istio + mTLS (18), Observability + CI/CD + GitOps (19)
+- **Scale** — System design (9), Proxies + gateways (10), Kafka (11), Caching + multi-tenancy (12)
+- **Operate** — AWS (13), Terraform (14), Kubernetes (15), Istio + mTLS (16), Observability + CI/CD + GitOps (17)
+- **AI** — AI foundations for Java (18), RAG + pgvector (19)
 - **AI systems** — Agents, tool calling + MCP (20), Self-hosted inference (21)
+
+**Order matters:** Scale and Operate come *before* AI (revised 2026-10-09). The
+platform is built, deployed and observed first; AI is added to a system that
+already runs. AI-dependent items that used to sit in Scale/Operate (semantic
+caching, the AI cost dashboard, pgvector on RDS) now live in Phases 18–19.
 
 **Capstone:** a multi-tenant AI knowledge platform — Spring Boot 3 on Java 21,
 PostgreSQL with pgvector and Row-Level Security, Spring Security with Keycloak
